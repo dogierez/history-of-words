@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Library - Master App</title>
+<style>
+:root{--s-black:#000;--s-base:#121212;--s-elev:#1a1a1a;--s-high:#2a2a2a;--s-dim:#a7a7a7;--s-bright:#fff;--s-green:#1db954;--s-green-hover:#1ed760;--p-color:#8e44ad;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;}
+body{background-color:var(--s-black);color:var(--s-bright);display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:240px;background-color:var(--s-black);display:flex;flex-direction:column;padding:24px;flex-shrink:0;z-index:10;}
+.sidebar h2{font-size:14px;color:var(--s-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:20px;}
+.nav-link{color:var(--s-dim);text-decoration:none;font-size:14px;font-weight:bold;margin-bottom:16px;display:flex;align-items:center;cursor:pointer;transition:color 0.2s;user-select:none;}
+.nav-link:hover,.nav-link.active{color:var(--s-bright);}
+.divider{height:1px;background-color:#282828;margin:10px 0 20px 0;}
+.main-view{flex:1;background-color:var(--s-base);border-radius:8px;margin:8px 8px 98px 0;display:flex;flex-direction:column;overflow-y:auto;position:relative;}
+.playlist-header{padding:40px 30px;display:flex;align-items:flex-end;background:linear-gradient(transparent 0,rgba(0,0,0,.5) 100%),var(--p-color); transition: background 0.5s ease;}
+.playlist-cover{width:200px;height:200px;background-color:#282828;box-shadow:0 4px 60px rgba(0,0,0,.5);margin-right:24px;border-radius:4px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:80px;user-select:none;}
+.playlist-info p{font-size:14px;font-weight:bold;margin-bottom:8px;}
+.playlist-info h1{font-size:4.5rem;font-weight:900;line-height:1.2;margin-bottom:15px;}
+.playlist-info .description{color:var(--s-dim);font-weight:normal;font-size:14px;}
+.action-bar{padding:24px 30px;background:linear-gradient(rgba(0,0,0,.6) 0,var(--s-base) 100%);display:flex;align-items:center;}
+.big-play-btn{width:56px;height:56px;background-color:var(--s-green);border-radius:50%;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;font-size:24px;padding-left:5px;transition:all 0.2s;flex-shrink:0;user-select:none;}
+.big-play-btn:hover{background-color:var(--s-green-hover);transform:scale(1.05);}
+.action-btn{background-color:transparent;color:var(--s-bright);border:1px solid #535353;border-radius:20px;padding:10px 20px;margin-left:15px;cursor:pointer;font-weight:bold;font-size:15px;transition:all 0.2s;user-select:none;}
+.action-btn:hover{border-color:var(--s-bright);transform:scale(1.02);background-color:rgba(255,255,255,0.1);}
+.transcript-container{margin:0 30px 20px 30px;padding:0 24px 24px 24px;background-color:var(--s-elev);border-radius:8px;display:none;line-height:1.8;font-size:1.15rem;border-left:4px solid var(--p-color);transition:all 0.3s ease;}
+.transcript-container.show{display:block;}
+.transcript-container.fullscreen{position:fixed;top:0;left:0;width:100vw;height:calc(100vh - 90px);z-index:9999;margin:0;border-radius:0;background-color:var(--s-base);border-left:none;border-top:4px solid var(--p-color);padding:2vh 5vw;overflow-y:auto;display:flex;flex-direction:column;justify-content:flex-start;}
+.transcript-container.fullscreen .transcript-header{margin-bottom:1.5vh;padding:2vh 0 1vh 0;border-bottom:1px solid #333;}
+.transcript-container.fullscreen h3{font-size:4.5vh;}
+.transcript-container.fullscreen p{font-size:3vh;line-height:1.5;margin-bottom:1.5vh;}
+.transcript-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:20px 0 15px 0;border-bottom:1px solid #333;position:sticky;top:0;background-color:var(--s-elev);z-index:10;}
+.transcript-container.fullscreen .transcript-header{background-color:var(--s-base);}
+.transcript-header h3{color:var(--p-color);text-shadow:0 0 8px rgba(142,68,173,0.5);font-size:1.8rem;margin:0;}
+.transcript-container p{margin-bottom:20px;}
+.dict-word{border-bottom:1px dashed var(--s-dim);cursor:pointer;transition:all 0.2s;user-select:none;}
+.dict-word.active{border-bottom:none;font-weight:bold;}
+.neon-en{color:#39ff14;text-shadow:0 0 8px rgba(57,255,20,0.4);}
+.neon-tr{color:#fbff00;text-shadow:0 0 8px rgba(255,255,0,0.4);}
+.track-list-container{padding:0 30px 40px 30px;}
+.track-list-header{display:grid;grid-template-columns:40px 1fr 150px;padding:5px 16px;border-bottom:1px solid #282828;color:var(--s-dim);font-size:13px;letter-spacing:1px;margin-bottom:16px;}
+.track-item{display:grid;grid-template-columns:40px 1fr 150px;align-items:center;padding:10px 16px;border-radius:4px;cursor:pointer;transition:background-color 0.2s;color:var(--s-dim);user-select:none;}
+.track-item:hover{background-color:var(--s-high);color:var(--s-bright);}
+.track-item.playing,.track-item.playing .track-title{color:var(--s-green);}
+.track-number{font-variant-numeric:tabular-nums;font-size:14px;}
+.track-item:hover .track-number{display:none;}
+.track-item:hover::before{content:"▶";width:40px;color:var(--s-bright);font-size:12px;display:block;}
+.track-info{display:flex;flex-direction:column;overflow:hidden;}
+.track-title{color:var(--s-bright);font-size:16px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.track-artist{font-size:13px;}
+.track-album{font-size:14px;}
+.player-bar{position:fixed;bottom:0;left:0;width:100%;height:90px;background-color:var(--s-black);display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-top:1px solid #282828;z-index:10000;}
+.now-playing-section{width:30%;display:flex;align-items:center;overflow:hidden;}
+.now-playing-art{font-size:32px;margin-right:10px;user-select:none;}
+.now-playing-info{display:flex;flex-direction:column;overflow:hidden;margin-left:10px;}
+.np-title{color:var(--s-bright);font-size:14px;margin-bottom:4px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.np-artist{color:var(--s-dim);font-size:12px;}
+.controls-section{width:40%;display:flex;flex-direction:column;align-items:center;}
+.buttons{display:flex;align-items:center;gap:24px;margin-bottom:8px;}
+.control-btn{background:none;border:none;color:var(--s-dim);font-size:18px;cursor:pointer;transition:color 0.2s;user-select:none;}
+.control-btn:hover{color:var(--s-bright);}
+.play-pause-btn{background-color:var(--s-bright);color:var(--s-black);width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;padding-left:3px;}
+.play-pause-btn.playing{padding-left:0;}
+.play-pause-btn:hover{transform:scale(1.05);color:var(--s-black);}
+.progress-container{display:flex;align-items:center;width:100%;max-width:600px;gap:8px;font-size:11px;color:var(--s-dim);user-select:none;}
+.progress-bar{flex:1;height:4px;background-color:#535353;border-radius:2px;cursor:pointer;position:relative;}
+.progress-fill{height:100%;background-color:var(--s-bright);border-radius:2px;width:0%;}
+.progress-bar:hover .progress-fill{background-color:var(--s-green);}
+.right-section{width:30%;}
+@media (max-width:768px){
+body{flex-direction:column;}.sidebar{display:none;}.main-view{margin:0;border-radius:0;margin-bottom:120px;}.playlist-header{flex-direction:column;align-items:center;text-align:center;padding:30px 20px;}.playlist-cover{margin-right:0;margin-bottom:20px;width:160px;height:160px;font-size:64px;}.playlist-info h1{font-size:2.5rem;}.action-bar{flex-direction:column;padding:15px 20px;gap:15px;}.action-btn{margin-left:0;width:100%;text-align:center;}.transcript-container{margin:0 15px 20px 15px;padding:0 20px 20px 20px;}.transcript-container.fullscreen{padding:0 15px 20px 15px;}.transcript-header{flex-direction:column;gap:15px;}.track-list-container{padding:0 15px 40px 15px;}.track-list-header{grid-template-columns:40px 1fr;}.track-list-header div:nth-child(3){display:none;}.track-item{grid-template-columns:40px 1fr;}.track-album{display:none;}.player-bar{height:110px;flex-direction:column;justify-content:center;padding:10px 15px;}.now-playing-section{width:100%;justify-content:center;margin-bottom:8px;}.np-title{text-align:center;font-size:15px;}.np-artist{display:none;}.controls-section{width:100%;}.buttons{margin-bottom:8px;gap:35px;}.control-btn{font-size:22px;}.play-pause-btn{width:40px;height:40px;}.right-section{display:none;}
+}
+</style>
+</head>
+<body>
+<div class="sidebar">
+    <a class="nav-link">Home</a>
+    <a class="nav-link">Search</a>
+    <a class="nav-link">Your Library</a>
+    <div class="divider"></div>
+    <h2>Playlists</h2>
+    <a class="nav-link playlist-selector" id="nav-concepts">Concepts</a>
+    <a class="nav-link playlist-selector" id="nav-food">Food History</a>
+    <a class="nav-link playlist-selector" id="nav-freedom">Freedom Fighters</a>
+    <a class="nav-link playlist-selector" id="nav-history">History of Things</a>
+    <a class="nav-link active playlist-selector" id="nav-history_words">History of Words</a>
+    <a class="nav-link playlist-selector" id="nav-satires">Satires</a>
+</div>
+
+<div class="main-view">
+    <div class="playlist-header" id="ui-header">
+        <div class="playlist-cover" id="ui-cover">📜</div>
+        <div class="playlist-info">
+            <p>Public Playlist</p>
+            <h1 id="ui-title">History of Words</h1>
+            <div class="description" id="ui-desc">A complete collection of 52 listening lessons exploring legendary historical figures and powerful leaders.</div>
+        </div>
+    </div>
+    <div class="action-bar">
+        <button class="big-play-btn" id="h-main-play-btn">▶</button>
+        <button class="action-btn" id="h-transcript-toggle">📖 Show Transcript</button>
+    </div>
+    <div class="transcript-container" id="h-transcript-container">
+        <div class="transcript-header">
+            <h3 id="h-transcript-title">Select a lesson to read</h3>
+            <button class="action-btn" id="h-fullscreen-btn" style="display:none;">⛶ Full Screen</button>
+        </div>
+        <div id="h-transcript-text">Press play on any track to view the transcript here. Click highlighted words for translation.</div>
+    </div>
+    <div class="track-list-container">
+        <div class="track-list-header"><div>#</div><div>Title</div><div>Album</div></div>
+        <div id="track-container"></div>
+    </div>
+</div>
+
+<div class="player-bar">
+    <div class="now-playing-section">
+        <div class="now-playing-art" id="np-art" style="display:none;">📜</div>
+        <div class="now-playing-info">
+            <div class="np-title" id="h-now-playing-title"></div>
+            <div class="np-artist" id="h-now-playing-artist"></div>
+        </div>
+    </div>
+    <div class="controls-section">
+        <div class="buttons">
+            <button class="control-btn" id="prev-btn">⏮</button>
+            <button class="control-btn play-pause-btn" id="h-play-pause-btn">▶</button>
+            <button class="control-btn" id="next-btn">⏭</button>
+        </div>
+        <div class="progress-container">
+            <span id="current-time">0:00</span>
+            <div class="progress-bar" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+            <span id="duration">0:00</span>
+        </div>
+    </div>
+    <div class="right-section"></div>
+</div>
+
+<audio id="audio-player"></audio>
+
+<script>
+// --- MASTER DATA OBJECT ---
+const playlists = {
+    history_words: {
+        id: "history_words",
+        title: "History of Words",
+        cover: "📜",
+        color: "#c0392b",
+        description: "A complete collection of 52 listening lessons exploring legendary historical figures and powerful leaders.",
+        baseUrl: "https://raw.githubusercontent.com/dogierez/history-of-words/main/",
+        tracks: [
+            {
+                icon: "❄️", title: "1. Alexander Nevsky", src: "01_Alexander_Nevsky.mp3",
+                text: `Alexander Nevsky was a famous Russian prince and military hero who lived in the 13th century. He was born in 1221. During his life, his homeland faced terrible dangers from every direction. The powerful Mongol Empire was attacking from the east, taking over many Russian cities. At the same time, strong European enemies were attacking from the west.<br><br>Alexander knew his army was not strong enough to fight the Mongols, so he made peace with them to protect his people. However, he fought bravely against the western invaders.<br><br>In 1240, a large Swedish army landed on the banks of the Neva River. Though he was only 19 years old, Alexander led a surprise attack and completely defeated the Swedes. Because of this great victory, people called him "Nevsky," which means "of the Neva."<br><br>Two years later, he faced an army of German knights who invaded during winter. Alexander cleverly lured the heavily armored knights onto the frozen surface of Lake Peipus. The ice broke under their heavy weight, and the Russians won the famous "Battle on the Ice." Today, he is celebrated as Russia's greatest defender.`,
+                dictionary: {"homeland":"memleket","invaders":"işgalciler","defeated":"mağlup etti","lured":"tuzağa düşürdü","armored":"zırhlı","surface":"yüzey","celebrated":"kutlanan"}
+            },
+            {
+                icon: "🐍", title: "2. Alexander the Great", src: "02_Alexander_the_Great.mp3",
+                text: `Alexander was born in 356 BC in Pella, the capital of Macedon. His mother, Olympia, was a strong and mysterious woman. She prayed to snakes and kept many of them in the palace. Alexander grew up with these snakes. Poisonous snakes bit him, so his body became strong against poison.<br><br>His father, King Philip II, was a very strict ruler. One night, he punished Alexander very badly. This difficult event helped make Alexander a fearless and strong man. Even as a young man, Alexander was special. He did not have a beard. He ordered all his soldiers to shave their faces, too. This rule for soldiers is still used today. He was a student of the famous teacher Aristotle. He learned about war and how to lead an army. He became a commander when he was still a teenager.<br><br>Alexander wanted to conquer the whole world. He took control of many huge lands like Persia and Egypt. He even traveled as far as India. His army grew bigger and stronger. However, great power brought danger. When he was at the River Indus, his own generals turned against him. They poisoned him because they were tired of fighting. They wanted to stop and return to their homes and families.`,
+                dictionary: {"mysterious":"gizemli","poisonous":"zehirli","strict":"katı/sert","fearless":"korkusuz","shave":"tıraş olmak","conquer":"fethetmek","poisoned":"zehirledi"}
+            },
+            {
+                icon: "🏹", title: "3. Attila the Hun", src: "03_Attila_the_Hun.mp3",
+                text: `Attila the Hun was one of the most feared leaders in ancient history. He ruled the Hunnic Empire from 434 to 453 AD. The Huns were a group of fierce nomadic warriors who lived on horses and used deadly bows and arrows. Because of his destructive attacks, the Romans called him the "Scourge of God."<br><br>Attila united many different tribes and created an enormous army. He first attacked the Eastern Roman Empire, forcing them to pay huge amounts of gold to keep him away. Later, he turned his army toward the Western Roman Empire. He marched through Gaul, which is modern-day France, destroying cities along the way. In 451 AD, a combined army of Romans and Visigoths finally stopped him at the Battle of the Catalaunian Plains.<br><br>A year later, Attila invaded Italy and marched toward Rome. However, Pope Leo I met with him outside the city. Nobody knows exactly what they talked about, but Attila agreed to leave Italy without attacking Rome. Shortly after this, Attila died suddenly on the night of his wedding, and his great empire quickly fell apart.`,
+                dictionary: {"fierce":"şiddetli/vahşi","nomadic":"göçebe","deadly":"ölümcül","destructive":"yıkıcı","scourge":"kırbaç/bela","enormous":"kocaman","invaded":"işgal etti"}
+            },
+            {
+                icon: "🐘", title: "4. Babur", src: "04_Babur.mp3",
+                text: `Babur was a great conqueror who founded the powerful Mughal Empire in India. He was born in 1483 in Central Asia. He had famous ancestors; he was connected to both Genghis Khan and Timur. From a young age, Babur faced many difficulties. He lost his father when he was just 11 years old and had to fight to keep his small kingdom. He won and lost the famous city of Samarkand several times.<br><br>Realizing he could not build an empire in Central Asia, he moved his army south into modern-day Afghanistan and captured Kabul. From there, Babur looked toward the rich lands of India. In 1526, he fought the massive army of the Sultan of Delhi at the Battle of Panipat.<br><br>Although his army was much smaller, Babur used clever tactics and a new weapon: gunpowder cannons. The loud cannons frightened the enemy's war elephants, causing great confusion. Babur won a spectacular victory and became the ruler of northern India. He was not just a warrior, but also a poet who loved nature and built beautiful gardens. His success started an empire that lasted for centuries.`,
+                dictionary: {"founded":"kurdu","ancestors":"atalar","captured":"ele geçirdi","gunpowder":"barut","cannons":"toplar","frightened":"korkuttu","spectacular":"muhteşem/çarpıcı"}
+            },
+            {
+                icon: "⚔️", title: "5. Baltacı Mehmet Pasha", src: "05_Baltaci_Mehmet_Pasha.mp3",
+                text: `Baltacı Mehmet Pasha was an Ottoman grand vizier in the early 18th century. He is best known for his role in the Prut War between the Ottoman Empire and Russia in 1711. At that time, Russia was growing stronger under Tsar Peter the Great.<br><br>The Ottomans, with the help of the Crimean Tatars, marched to stop them. Baltacı Mehmet Pasha led the Ottoman army to the Prut River, where they surrounded the Russian forces. The Russians were trapped, hungry, and weak. It seemed that the Ottomans were ready for a great victory.<br><br>Although the army had the chance to destroy the Russians, Baltacı Mehmet Pasha accepted peace. With the Treaty of Prut, Russia gave back the city of Azov and promised to stay away from Ottoman lands. Peter the Great and his army were allowed to leave safely. Some people praised Baltacı Mehmet Pasha for avoiding more bloodshed. Others blamed him for not using the chance to defeat Russia completely. After this, his career lost strength, but the Treaty of Prut remained an important event in Ottoman history.`,
+                dictionary: {"surrounded":"kuşattı","trapped":"kapana kısılmış","praised":"övdü","avoiding":"kaçınmak","bloodshed":"kan dökülmesi","blamed":"suçladı"}
+            },
+            {
+                icon: "🐎", title: "6. Baybars", src: "06_Baybars.mp3",
+                text: `Baybars was born in Central Asia around 1223. When he was a young boy, enemies captured him and sold him as a slave. He traveled to Egypt to become a Mamluk. Mamluks were special soldier-slaves who went to strict military schools to learn fighting. Baybars trained very hard with horses and weapons. He was smart and strong, so he quickly became an important commander.<br><br>At this time, a dangerous army called the Mongols was attacking the Middle East. They destroyed many cities and never lost a big battle. In 1260, the Mongols tried to enter Egypt. Baybars met them at a place called Ain Jalut. He used a clever plan to win. He led a small attack and then pretended to run away in fear. The Mongols chased him into a valley without looking carefully. Suddenly, the rest of the Mamluk army appeared from their hiding places. The trap worked perfectly, and they defeated the Mongol army.<br><br>This victory was very important because it stopped the Mongols from taking the region. Soon after, Baybars became the Sultan of Egypt and Syria. He was a good ruler. He built bridges, canals, and roads to help people travel. He also made a fast mail system using horses. Today, history remembers Baybars as a great leader who protected his people.`,
+                dictionary: {"captured":"ele geçirdi","strict":"katı","pretended":"gibi yaptı","chased":"kovaladı","valley":"vadi","trap":"tuzak"}
+            },
+            {
+                icon: "🔥", title: "7. Boudica", src: "07_Boudica.mp3",
+                text: `Boudica was a famous warrior queen in Britain during the first century. At that time, the Roman Empire ruled parts of Britain. The Celtic tribes wanted their freedom. Roman rulers treated the Celtic people harshly.<br><br>After Boudica's husband, King Prasutagus, died, the Romans took his lands and property. They beat Boudica and attacked her daughters. These cruel actions made Boudica very angry. She decided to fight against Roman rule.<br><br>Boudica gathered warriors from different Celtic tribes. She became their leader. They attacked Roman towns and forts across eastern Britain. Their most important victories destroyed the cities of Camulodunum, Londinium, and Verulamium.<br><br>The Roman governor Suetonius led a large army to stop Boudica. At the final battle in 61 AD, the Roman army defeated Boudica's forces, although her army was much larger. The exact details of Boudica's death remain unknown. Some stories say she got ill and died. Other stories say she committed suicide to avoid capture.`,
+                dictionary: {"harshly":"sertçe","property":"mülk","cruel":"zalim","gathered":"topladı","forts":"kaleler","suicide":"intihar"}
+            },
+            {
+                icon: "🏰", title: "8. Cezzar Ahmed Pasha", src: "08_Cezzar_Ahmed_Pasha.mp3",
+                text: `Cezzar Ahmed Pasha was the Ottoman governor of Acre, a fortress city on the eastern Mediterranean coast. He became famous in 1799, when Napoleon Bonaparte, after conquering Egypt, marched into Syria and attacked Acre.<br><br>Napoleon was one of the most brilliant generals of his time. He believed Acre would open the road for him to enter Anatolia and perhaps challenge the Ottoman Empire itself. With modern cannons and a strong army, he began a long siege.<br><br>Although Napoleon’s army was powerful and had won many victories before, Acre did not fall. Cezzar Ahmed Pasha defended the city with courage and discipline. He was supported by British ships under Admiral Sidney Smith, who gave him weapons and naval help. For two months, Napoleon’s forces tried again and again, but the walls of Acre resisted.<br><br>At last, Napoleon abandoned the siege and returned to Egypt. This failure damaged his reputation and stopped his dreams in the East. Cezzar Ahmed Pasha became a hero of the Ottoman Empire, remembered as the man who stopped Napoleon at the gates of Acre.`,
+                dictionary: {"fortress":"kale","siege":"kuşatma","courage":"cesaret","discipline":"disiplin","naval":"donanma","resisted":"direndi","abandoned":"terk etti","reputation":"itibar"}
+            },
+            {
+                icon: "👑", title: "9. Cleopatra", src: "09_Cleopatra.mp3",
+                text: `Cleopatra VII was the last active ruler of the Ptolemaic Kingdom of Egypt. She was born in 69 BC. Although her family originally came from Greece, she was the first in her family to learn the Egyptian language. She was highly intelligent, studying mathematics, philosophy, and astronomy. When she became queen, Egypt was a very rich country, but the powerful Roman Republic wanted to control it.<br><br>Cleopatra used her brilliant mind and charm to protect her kingdom. She formed strong political and romantic alliances with two of Rome's most powerful leaders: Julius Caesar and Mark Antony. With Julius Caesar's help, she defeated her enemies in Egypt and kept her throne.<br><br>Later, she supported Mark Antony in a massive Roman civil war against Octavian. Unfortunately, their combined army and navy lost the famous Battle of Actium in 31 BC. When Octavian's forces arrived in Egypt, Cleopatra knew she would be taken to Rome as a prisoner. According to legend, she chose to end her own life using a poisonous snake. Today, people remember Cleopatra not just for her beauty, but as a brilliant queen who fought to keep her nation independent.`,
+                dictionary: {"intelligent":"zeki","astronomy":"astronomi","charm":"cazibe","alliances":"ittifaklar","throne":"taht","poisonous":"zehirli","independent":"bağımsız"}
+            },
+            {
+                icon: "🌊", title: "10. Cnut the Great", src: "10_Cnut_the_Great.mp3",
+                text: `Cnut the Great was the most powerful Viking king in history. He was born around 990 AD in Denmark. Unlike other Vikings who only wanted to raid, Cnut wanted to build a great empire. His father, Sweyn Forkbeard, attacked England, and young Cnut fought by his side.<br><br>When his father died, Cnut had to fight hard to keep control. In 1016, he defeated the English army and became the King of England. He later became the King of Denmark and then conquered Norway. He united these three countries into a massive superpower called the North Sea Empire.<br><br>Cnut was a very smart ruler, not just a strong warrior. He knew that to keep peace, he needed the respect of the people. He married an English queen and worked closely with the Catholic Church. He even traveled to Rome to meet the Pope and the Holy Roman Emperor. Because of his wise leadership, his lands enjoyed years of peace and great wealth. A famous legend says he once commanded the ocean waves to stop, showing his followers that only God is truly all-powerful. He died in 1035 as a legendary king.`,
+                dictionary: {"raid":"yağmalamak","conquered":"fethetti","superpower":"süper güç","wealth":"zenginlik","commanded":"emretti","legendary":"efsanevi"}
+            },
+            {
+                icon: "🕊️", title: "11. Cyrus the Great", src: "11_Cyrus_the_Great.mp3",
+                text: `Cyrus the Great was the brilliant founder of the ancient Persian Empire. Born around 600 BC, he was a powerful conqueror who created the largest empire the world had ever seen at that time. He started by uniting the Persian and Median tribes, and then his armies marched across the Middle East. He defeated powerful kingdoms like Lydia in Asia Minor and the mighty Neo-Babylonian Empire.<br><br>Even though he conquered many lands, Cyrus is most famous for how he treated the people he defeated. In the ancient world, conquerors were usually very cruel, burning cities and making people slaves. Cyrus was completely different. He was kind and fair. He respected the religions, languages, and cultures of the nations he ruled.<br><br>When he captured the great city of Babylon, he freed the Jewish people who had been kept there as prisoners for many years and allowed them to return to Jerusalem to rebuild their temple. Because of his wisdom and tolerance, millions of people accepted him as a great leader. His ideas about human rights and peaceful rule made him a legend in ancient history.`,
+                dictionary: {"founder":"kurucu","mighty":"güçlü","cruel":"zalim","rebuild":"yeniden inşa etmek","wisdom":"bilgelik","tolerance":"hoşgörü"}
+            },
+            {
+                icon: "⚔️", title: "12. El Cid", src: "12_El_Cid.mp3",
+                text: `Rodrigo Diaz de Vivar was born in 1043 near Burgos in Christian Spain. His nickname, "El Cid," comes from the Arabic word El Seyit, meaning respected. He grew up as a skilled warrior and served King Sancho II of Castile. He supported the new ruler, King Alfonso VI. But political fights soon made him lose favor. He was accused of treachery and sent into exile.<br><br>Although he had to leave his king, Rodrigo gathered loyal soldiers and fought to survive. He often worked with Muslim rulers and fought for them when it helped his cause. His respect for Muslim soldiers and leaders made him different from other Christian knights of his time.<br><br>The most important moment in his life came in 1094, when he took the city of Valencia. Many Muslim families still lived there, and Rodrigo let them stay in the city under his rule. He kept peace with nearby Muslim states and sometimes hired Muslim soldiers to fight for him. His skill in battle and understanding of Muslim customs helped him keep Valencia safe from both Christian and Muslim enemies. Rodrigo continued to defend the city until he died in 1099. His life shows that his Islamic connections, alliances, and respect for Muslim culture were important for his success.`,
+                dictionary: {"accused":"suçlandı","treachery":"ihanet","exile":"sürgün","loyal":"sadık","hired":"kiraladı","customs":"görenekler/adetler"}
+            },
+            {
+                icon: "🐅", title: "13. Fahrettin Pasha", src: "13_Fahrettin_Pasha.mp3",
+                text: `Fahrettin Pasha, known as the "Desert Tiger," was one of the bravest commanders of the Ottoman Empire. During World War I, in 1916, he was sent to defend the holy city of Medina. His mission was to protect the city against the Arab revolt supported by the British.<br><br>The famous British spy, Lawrence of Arabia, destroyed the Hejaz Railway and cut Medina off from the world. Food and water became very scarce. Soldiers and people even ate locusts to survive. Still, Fahrettin Pasha never gave up. He sent the holy relics to Istanbul for safety and refused to surrender, saying: "I will not lower the Turkish flag with my own hands!".<br><br>Even after the war ended, he resisted, but was finally forced to give up by his own officers. As he left Medina, he cried: "O Messenger of God, they are taking me by force!". Later, he was sent into exile in Egypt and Malta. In 1921, he was freed and joined the Turkish War of Independence. After victory, he became the first ambassador of the new Republic of Turkey in Afghanistan. Fahrettin Pasha died in 1948, but his courage, faith, and love for his country are never forgotten.`,
+                dictionary: {"mission":"görev","revolt":"isyan","scarce":"kıt","locusts":"çekirgeler","relics":"kutsal emanetler","surrender":"teslim olmak","ambassador":"büyükelçi"}
+            },
+            {
+                icon: "🎖️", title: "14. Gazi Osman Pasha", src: "14_Gazi_Osman_Pasha.mp3",
+                text: `Gazi Osman Pasha was a great Ottoman commander of the 19th century. He became famous during the Russo-Turkish War of 1877-1878 for defending the town of Plevna in Bulgaria. In July 1877, Russian and Romanian armies attacked Plevna. Osman Pasha quickly organized the defenses and built strong trenches around the town. His clever tactics helped the Ottomans, who had a smaller army, to win several battles. People in Europe admired his courage and military skill.<br><br>For five months, his army resisted one of the biggest forces in Europe. Although his soldiers were tired and food and ammunition became less, Osman Pasha did not want to surrender. In December 1877, when there was no food or ammunition left, Osman Pasha tried to attack the enemy.<br><br>He was wounded and captured... but the Russians respected him and treated him with dignity. After the war, Osman Pasha returned to Istanbul as a hero and was given the title "Gazi." His defense of Plevna is still remembered as a great moment in Ottoman history.`,
+                dictionary: {"trenches":"siperler","admired":"hayran kaldı","ammunition":"mühimmat","wounded":"yaralandı","dignity":"haysiyet/saygınlık"}
+            },
+            {
+                icon: "🔫", title: "15. Gustavus Adolphus", src: "15_Gustavus_Adolphus.mp3",
+                text: `Gustavus Adolphus was a brilliant King of Sweden during the 17th century. He is often called the "Father of Modern Warfare" because he completely changed how armies fought. He became king in 1611 when he was only 17 years old. At that time, Sweden was fighting wars against Denmark, Russia, and Poland.<br><br>Gustavus was a highly intelligent leader who carefully studied military strategy. Before him, European armies moved very slowly and used heavy, difficult weapons. Gustavus created lighter cannons that horses could easily pull into battle. He also trained his soldiers to work closely together. His musketeers fired their guns in continuous waves, creating a storm of bullets.<br><br>During the massive conflict known as the Thirty Years' War, he led his well-trained Swedish army into Germany to defend the Protestant states. His amazing tactics helped him win several huge victories against much larger Catholic armies. His most famous success was at the Battle of Breitenfeld in 1631. Sadly, he was killed in battle a year later while leading a cavalry charge through thick fog. However, his military inventions changed warfare in Europe forever.`,
+                dictionary: {"warfare":"savaş sanatı","continuous":"sürekli","cavalry":"süvari","charge":"hücum","fog":"sis"}
+            },
+            {
+                icon: "🛡️", title: "16. Halil Pasha", src: "16_Halil_Pasha.mp3",
+                text: `The Siege of Kut al-Amara was one of the greatest Ottoman victories in World War I. It took place in Mesopotamia, today's Iraq, between December 1915 and April 1916. A British army of about 13,000 soldiers, led by General Townshend, entered the town of Kut after a defeat at Ctesiphon. The Ottomans, under the command of Halil Pasha, surrounded the town and cut off supplies. The British hoped that new troops would arrive to save them, but Ottoman forces stopped every attempt.<br><br>Although the British army was better equipped, hunger and disease became stronger enemies inside the town. After 147 days of resistance, General Townshend surrendered on 29 April 1916. More than 13,000 British and Indian soldiers were taken as prisoners.<br><br>This victory gave the Ottoman Empire great pride. It showed that the empire could still fight strongly against a world power. For the British, it was one of the worst defeats in their military history. For the Ottomans, Kut al-Amara became a symbol of courage and resistance in the dark days of World War I.`,
+                dictionary: {"attempt":"girişim/teşebbüs","equipped":"donanımlı","resistance":"direniş","pride":"gurur"}
+            },
+            {
+                icon: "🐘", title: "17. Hannibal Barca", src: "17_Hannibal_Barca.mp3",
+                text: `Hannibal Barca was a brilliant military commander from the ancient city of Carthage. He was born in 247 BC. From a very young age, his father taught him to hate the Roman Republic. Rome was Carthage's biggest enemy. When Hannibal became a general, he decided to attack Rome in a way nobody expected.<br><br>Instead of sailing across the sea, he gathered a huge army in Spain. In 218 BC, he led tens of thousands of soldiers and 37 war elephants on a long, dangerous journey over the snowy Alps mountains into Italy. The journey was incredibly difficult, and many men and animals died in the freezing cold. However, the surprise attack worked perfectly.<br><br>For the next 15 years, Hannibal moved through Italy and won many huge battles against the Romans. His most famous victory was at the Battle of Cannae, where his clever tactics destroyed a much larger Roman army. Although he won many battles, he never captured the city of Rome itself. Eventually, he had to return to Africa to defend his home. Today, military leaders still study his amazing strategies and his legendary journey over the Alps.`,
+                dictionary: {"sailing":"yelken açmak","freezing":"dondurucu","tactics":"taktikler","strategies":"stratejiler"}
+            },
+            {
+                icon: "🏛️", title: "18. Hatshepsut", src: "18_Hatshepsut.mp3",
+                text: `Hatshepsut was one of the most successful and powerful pharaohs of ancient Egypt. She lived during the 15th century BC. When her husband, the pharaoh, died, his son from another woman was too young to rule. Hatshepsut stepped in to act as his regent, but soon she did something very unusual: she declared herself the official pharaoh. To show her authority, she often dressed in traditional male clothing and even wore the false beard that pharaohs wore.<br><br>Instead of fighting many wars, Hatshepsut focused on making Egypt wealthy and beautiful. She reopened ancient trade routes and sent an expedition to the mysterious land of Punt, bringing back rich treasures like gold, ivory, and exotic trees. With this wealth, she ordered the construction of hundreds of incredible buildings and monuments across Egypt. Her most famous creation is her stunning memorial temple at Deir el-Bahari, which is still admired by architects today.<br><br>After her death, later rulers tried to erase her name from history, but modern archaeologists discovered her amazing achievements. She is remembered as a brilliant female leader who brought peace and great wealth to the Egyptian empire.`,
+                dictionary: {"regent":"naip","unusual":"olağandışı","authority":"otorite/yetki","expedition":"sefer","ivory":"fildişi","stunning":"göz alıcı","erase":"silmek"}
+            },
+            {
+                icon: "👑", title: "19. Isabella of Castile and Ferdinand of Aragon", src: "19_Isabella_of_Castile_and_Ferdinand_of_Aragon.mp3",
+                text: `Isabella of Castile and Ferdinand of Aragon were the famous Catholic Monarchs of Spain. They married in 1469, uniting two powerful kingdoms. Together, they worked to create a strong and united Spain. Their most famous goal was the Reconquista, the long struggle to take back Iberia from Muslim rule. For centuries, Muslims had controlled large parts of Spain. In 1492, Isabella and Ferdinand's armies captured Granada, the last Muslim kingdom in Iberia. This victory ended hundreds of years of conflict.<br><br>Although many Muslims and Jews had lived peacefully in Spain, the monarchs wanted only Christianity to remain. They ordered Muslims and Jews to convert or leave the country. Many families lost their homes and were forced to start new lives elsewhere.<br><br>The same year, Isabella and Ferdinand also supported Christopher Columbus's voyage. This journey led to the discovery of the Americas by Europeans and the beginning of Spain's overseas empire. Isabella and Ferdinand changed the history of Spain forever. They built a strong monarchy, spread Christianity, and opened the way for Spanish power around the world. For some, they are great rulers, but for others, their rule is remembered with pain because of the removal of Muslims and Jews.`,
+                dictionary: {"struggle":"mücadele","conflict":"çatışma","convert":"din değiştirmek","voyage":"deniz yolculuğu","monarchy":"monarşi"}
+            },
+            {
+                icon: "🐎", title: "20. Ivan the Terrible", src: "20_Ivan_the_Terrible.mp3",
+                text: `Ivan the Terrible was the first ruler to be crowned as the Tsar of all Russia. He was born in 1530 and had a very difficult childhood. His parents died when he was young, and cruel nobles controlled the government. When Ivan finally took power, he wanted to make sure nobody could challenge him.<br><br>During the early years of his rule, he did many good things. He changed the laws, created a permanent army, and expanded Russian lands by conquering the cities of Kazan and Astrakhan. This made Russia much larger and stronger. However, as Ivan grew older, he became extremely suspicious and violent. The word "Terrible" in his name means "fearsome" or "dangerous."<br><br>He created a secret police force dressed in black, who rode black horses. They hunted down and killed anyone Ivan did not trust. Entire families and towns were destroyed because of his anger. In his worst moment, he hit his own son during an argument and accidentally killed him. Ivan was a smart and powerful leader who built an empire, but his deep paranoia made his rule a dark time in Russian history.`,
+                dictionary: {"crowned":"taç giydi","nobles":"soylular","permanent":"kalıcı","suspicious":"şüpheci","fearsome":"korkutucu","paranoia":"paranoya"}
+            },
+            {
+                icon: "🧪", title: "21. Jacobi", src: "21_Jacobi.mp3",
+                text: `Jacobi was born in a poor Jewish village near Genoa. From a young age he showed intelligence and skill in medicine. He studied herbs, medicines, and poisons in Italian cities. Venice and the Vatican noticed him and supported his studies, seeing him as useful for their secret plans. He became a skilled physician, respected for his knowledge and precision.<br><br>When the Ottomans rose and Mehmed II captured Constantinople, Venice and the Church feared his power. Jacobi was sent east under the name Yakup. He entered the Ottoman palace and served with care. He treated soldiers and advised pashas. Mehmed trusted him and made him head physician. To the sultan, he seemed loyal, but some whispered that he still served Venice and the Vatican.<br><br>In 1481, Mehmed prepared for a new campaign. Soon he fell ill. Yakup gave him medicine, and the sultan died. Suspicion fell on Yakup. Some said palace guards killed him; others said he fled but was captured. Jacobi, who had risen from poverty to the highest position in the Ottoman court, ended his life in mystery.`,
+                dictionary: {"intelligence":"zeka","physician":"hekim","precision":"kesinlik","advised":"tavsiyede bulundu","suspicion":"şüphe","fled":"kaçtı"}
+            },
+            {
+                icon: "🛡️", title: "22. Jan Žižka", src: "22_Jan_Zizka.mp3",
+                text: `Jan Žižka was a brilliant and terrifying Czech military commander during the 15th century who is famous for never losing a single battle. He became the military leader of the Hussites, a group of Christian rebels in Bohemia who wanted religious freedom from the Catholic Church. When the Pope and the Holy Roman Emperor sent massive armies of heavily armored crusader knights to crush them, the situation seemed hopeless.<br><br>Žižka's army was made up of poor farmers and ordinary townspeople, not trained soldiers. However, Žižka was a tactical genius. He invented the "war wagon," transforming ordinary farm carts into moving fortresses filled with soldiers armed with crossbows and early handguns. He arranged these heavily armored wagons into a defensive circle, creating an unbreakable wall against enemy cavalry charges.<br><br>Even more amazingly, Žižka lost an eye in battle, and later lost his second eye, becoming completely blind. Despite being totally blind, he continued to command his army perfectly using detailed descriptions of the battlefield provided by his officers. His revolutionary tactics and absolute fearlessness successfully defended his people against the greatest military powers of Europe.`,
+                dictionary: {"terrifying":"korkutucu","rebels":"isyancılar","hopeless":"umutsuz","fortresses":"kaleler","crossbows":"arbaletler","cavalry":"süvari","fearlessness":"korkusuzluk"}
+            },
+            {
+                icon: "⚔️", title: "23. Joan of Arc", src: "23_Joan_of_Arc.mp3",
+                text: `Joan of Arc was a very brave young woman who became a national hero of France. She was born in 1412 to a poor farming family. During her childhood, France was fighting the Hundred Years' War against England. The English controlled a large part of France. When Joan was 13 years old, she began to see visions and hear voices. She believed that God was telling her to save France and help the French prince become king.<br><br>Although she was only a teenager and had no military training, she traveled to the prince's court. She convinced him to give her an army. Dressed in white armor, Joan led her soldiers to the city of Orléans, which was surrounded by the English. Her courage inspired the French soldiers, and they won a great victory in just nine days.<br><br>Thanks to her leadership, the prince was crowned King Charles VII. Sadly, enemy soldiers captured Joan and sold her to the English. They put her on trial and burned her at the stake when she was only 19. Today, people around the world remember her incredible faith and bravery.`,
+                dictionary: {"visions":"görüler","convinced":"ikna etti","surrounded":"kuşatılmış","crowned":"taç giydirildi","stake":"kazık","faith":"inanç"}
+            },
+            {
+                icon: "🗡️", title: "24. Khalid ibn al-Walid", src: "24_Khalid_ibn_al_Walid.mp3",
+                text: `Khalid ibn al-Walid was one of history's most brilliant and successful military commanders. He lived in the 7th century during the very beginning of the Islamic conquests. What makes Khalid so famous is that he fought in over a hundred battles and never lost a single one. Because of his amazing skill and bravery, he was given the title "The Drawn Sword of God."<br><br>At first, Khalid fought against the early Muslims and even defeated them at the Battle of Uhud using smart cavalry tactics. However, he later converted to Islam and became their greatest general. He led Muslim armies against two massive superpowers of the time: the Byzantine Empire and the Sassanid Persian Empire.<br><br>Khalid was a master of speed and surprise. He could move his soldiers quickly across difficult deserts to attack enemies when they were not ready. His greatest victory was at the Battle of Yarmouk in 636 AD, where he defeated a huge Byzantine army. His clever strategies completely destroyed the enemy forces and brought the region of Syria under Islamic control. Military academies around the world still study his extraordinary battlefield tactics.`,
+                dictionary: {"conquests":"fetihler","converted":"din değiştirdi","superpowers":"süper güçler","extraordinary":"olağanüstü"}
+            },
+            {
+                icon: "🌉", title: "25. Koca Sinan Pasha", src: "25_Koca_Sinan_Pasha.mp3",
+                text: `In 1595, the Ottoman leader Koca Sinan Pasha led an army into Wallachia, which is now Romania. He fought against a rebel prince named Michael the Brave. The Ottomans captured the main city, but winter was coming. The army needed to return to safety. Sinan Pasha ordered his soldiers to retreat to the Danube River.<br><br>To cross the wide river, the army used a long wooden bridge at Giurgiu. The crossing was very slow. The soldiers carried heavy carts filled with treasure and goods. This delayed everyone. Sinan Pasha and the main army crossed first. He left the famous "Akıncı" warriors at the back to guard the bridge.<br><br>Suddenly, Michael the Brave arrived with his cannons. He saw the army was split in two. He fired directly at the bridge. The wood broke, and the bridge collapsed into the water. The Akıncı warriors were trapped on the wrong side. They could not escape the enemy or the deep river. Thousands of Akıncı soldiers died that day. Before this event, they were the most famous riders in the Ottoman army. Because of this single disaster, the Akıncı lost their strength and never recovered. In history, this sad event is called the "Bridge Disaster.”`,
+                dictionary: {"retreat":"geri çekilmek","delayed":"geciktirdi","guard":"korumak","split":"bölünmüş","collapsed":"çöktü","disaster":"felaket"}
+            },
+            {
+                icon: "🛡️", title: "26. Leonidas I", src: "26_Leonidas_I.mp3",
+                text: `Leonidas I was the legendary warrior king of the Greek city-state of Sparta. He lived in the 5th century BC. Sparta was famous for its extreme military training. From the time Leonidas was a young boy, he endured harsh physical trials to become a perfect, fearless soldier. He became king during a very dangerous time for Greece.<br><br>The powerful Persian Empire, led by King Xerxes, invaded with an army of hundreds of thousands of men. In 480 BC, Leonidas led a small force of Greeks, including his famous personal guard of 300 Spartans, to a narrow mountain pass called Thermopylae. Because the pass was so narrow, the massive Persian army could not use its superior numbers.<br><br>For three days, Leonidas and his brave warriors held the line, fighting with incredible skill and courage. They killed thousands of Persian soldiers. Eventually, a traitor showed the Persians a secret mountain path to surround the Spartans. Knowing he would die, Leonidas ordered most of the Greek army to leave. He and his 300 Spartans stayed behind to fight to the death. Their heroic sacrifice gave the rest of Greece time to prepare and eventually win the war.`,
+                dictionary: {"extreme":"aşırı","endured":"katlandı","narrow":"dar","superior":"üstün","traitor":"hain","heroic":"kahramanca"}
+            },
+            {
+                icon: "👑", title: "27. Mansa Musa", src: "27_Mansa_Musa.mp3",
+                text: `Mansa Musa was the legendary ruler of the Mali Empire in West Africa during the 14th century. Today, historians believe he might be the wealthiest person who has ever lived in human history. Under his leadership, the Mali Empire grew incredibly powerful, controlling huge territories and the extremely valuable trade routes for salt and gold. The empire produced more than half of the world's gold supply at the time.<br><br>Musa was a devout Muslim, and his most famous moment was his incredible pilgrimage to Mecca in 1324. He traveled across the vast Sahara Desert with a massive caravan of 60,000 men and 80 camels, each carrying hundreds of pounds of pure gold. As he traveled through Egypt, he gave away so much gold to the poor and to local markets that the value of gold actually crashed in the region for ten years.<br><br>When he returned home, he brought back brilliant architects and scholars to build beautiful mosques and massive universities in the city of Timbuktu. His leadership turned his empire into a global center of wealth, learning, and Islamic culture.`,
+                dictionary: {"wealthiest":"en zengin","valuable":"değerli","devout":"dindar","pilgrimage":"hac","vast":"uçsuz bucaksız","crashed":"çöktü"}
+            },
+            {
+                icon: "🛡️", title: "28. Matthias Corvinus", src: "28_Matthias_Corvinus.mp3",
+                text: `Matthias Corvinus was one of the greatest and most famous kings of Hungary, ruling in the 15th century. He was elected king when he was only fourteen years old, which was highly unusual because he did not come from a traditional royal family. However, he quickly proved to be a military genius and a highly effective ruler. To protect his kingdom from the rapidly expanding Ottoman Empire to the south and the Holy Roman Empire to the west, he created the legendary "Black Army."<br><br>Unlike the armies of other kings, which relied on unloyal nobles, the Black Army was a permanent, professional force of highly trained mercenary soldiers. They were famously equipped with the very latest technology, including thousands of early firearms. With this unstoppable army, Matthias successfully defended his borders, conquered parts of Austria, and even captured the great city of Vienna.<br><br>Beyond his wars, Matthias was a true Renaissance king. He built stunning palaces, opened a massive library called the Bibliotheca Corviniana, and established fair laws that protected poor farmers. Even today, Hungarian legends remember him as "Matthias the Just.”`,
+                dictionary: {"unusual":"olağandışı","rapidly":"hızla","mercenary":"paralı asker","unstoppable":"durdurulamaz","stunning":"çarpıcı"}
+            },
+            {
+                icon: "⚓", title: "29. Mezamorta Hüseyin Pasha", src: "29_Mezamorta_Huseyin_Pasha.mp3",
+                text: `Mezamorta Hüseyin Pasha was a famous Ottoman admiral born in the 17th century. Some people say he was originally from Spain and later became a Muslim. He started his career as a sailor and a pirate in the Mediterranean Sea. His interesting nickname, "Mezamorta," means "half-dead" in Italian. In a big battle against the Venetians, he was hurt very badly. His enemies thought he was dead, but he survived. Because of this amazing event, he got his famous name. By 1674, he was a captain and attacked many enemy ships.<br><br>In 1683, the French navy attacked Algiers. The leader of Algiers wanted to give up, but Mezamorta refused. He became the new ruler and defended the city. To show his strength, he put the French consul into a large cannon and fired him at the enemy ships. This stopped the French attack. Later, he attacked the French coast until they agreed to peace.<br><br>Later, Mezamorta went to Istanbul to join the Ottoman navy. In 1695, he won back Chios Island from the Venetians. Because of this victory, the Sultan made him the Grand Admiral, or "Kapudan Pasha." He changed how the navy fought. He stopped using old rowing ships and started using big sailing ships called "kalyons." Mezamorta died from an illness in 1701 while getting ready for a new war.`,
+                dictionary: {"admiral":"amiral","survived":"hayatta kaldı","refused":"reddetti","consul":"konsolos","rowing":"kürekli"}
+            },
+            {
+                icon: "🏰", title: "30. Mir Ali Beg", src: "30_Mir_Ali_Beg.mp3",
+                text: `In the late 1500s, Portugal controlled East African cities like Mombasa. They used these ports for trade. The local people disliked Portuguese rule and requested help from the Ottoman Empire. The Ottomans wanted to stop Portuguese power in the region. An Ottoman captain, Mir Ali Beg, arrived to fight. Cities on the coast supported him with supplies. He captured Portuguese ships and built a small castle in Mombasa. The Portuguese sent a large fleet to destroy him.<br><br>In 1589, Portuguese ships attacked Mombasa with heavy guns. Suddenly, a group of warriors called the Zimba attacked from the land. The Zimba were cannibals. During the battle, they caught and ate Ottoman soldiers. The city faced attacks from both sides at the same time.<br><br>Mir Ali Beg tried to escape, but the Portuguese captured him. They sent him to Portugal as a prisoner. He lived there for the rest of his life. This battle ended the Ottoman attempts to control East Africa. After this defeat, the Ottoman Empire did not try to take power in this region again.`,
+                dictionary: {"requested":"talep etti","fleet":"filo","cannibals":"yamyamlar","attempts":"girişimler"}
+            },
+            {
+                icon: "👑", title: "31. Mustafa 'the second'", src: "31_Mustafa_the_second.mp3",
+                text: `In 1695, Sultan Mustafa the second became the Ottoman leader. He wanted to make the empire powerful again and gathered 100,000 soldiers to attack Austria. However, the Austrian general, Prince Eugene of Savoy, was very clever. He had spies inside the Ottoman army who told him exactly where the Sultan planned to cross the Tisa River.<br><br>At the river, the Ottoman leaders made a terrible mistake. Greedy commanders, called Pashas, stopped the soldiers at the narrow bridge. They demanded money from their own men before allowing them to cross. This caused a long delay. Prince Eugene saw the confusion and attacked with heavy cannons. The bridge broke, and thousands of soldiers died in the water while the Sultan watched helplessly from the other side.<br><br>The results were a disaster. The Ottomans lost 30,000 men, valuable treasure, and the Sultan’s official seal. Sultan Mustafa was heartbroken and never led an army again. In 1699, the empire signed the Treaty of Karlowitz and lost a large amount of land.`,
+                dictionary: {"spies":"casuslar","greedy":"açgözlü","delay":"gecikme","helplessly":"çaresizce","disaster":"felaket","seal":"mühür"}
+            },
+            {
+                icon: "🛠️", title: "32. Peter the Great", src: "32_Peter_the_Great.mp3",
+                text: `Peter the Great was a famous Tsar who completely changed the history of Russia. He was born in 1672 and grew up to be a very tall and energetic leader. When he became the ruler, Russia was an old-fashioned country that was far behind Western Europe. Peter wanted to make his country modern and powerful. To learn how other countries succeeded, he traveled secretly across Europe. He worked as a simple shipbuilder in the Netherlands and England to understand modern technology and navies.<br><br>When he returned home, he forced his people to change. He made Russian nobles cut off their long beards and wear European clothes. He also built a strong, modern army and created the very first Russian navy. With his new military strength, Peter fought a long war against Sweden, which was a great power at the time.<br><br>He won the Great Northern War and gained access to the Baltic Sea. On this newly captured land, he built a beautiful new capital city called St. Petersburg, which he called his "window to the West." By the time he died, Russia was a mighty European empire.`,
+                dictionary: {"energetic":"enerjik","old-fashioned":"eski moda","succeeded":"başardı","access":"erişim"}
+            },
+            {
+                icon: "🪓", title: "33. Ragnar Lodbrok", src: "33_Ragnar_Lodbrok.mp3",
+                text: `Ragnar Lodbrok was a famous Viking leader who lived in the 9th century. He came from Scandinavia and led many attacks on England and France. Ragnar became well known for his brave fighting and smart battle plans. Stories say he got his name "Lodbrok" by wearing special pants to protect himself from a poisonous snake.<br><br>He led many successful Viking journeys. In 845, he attacked Paris with a large group of Viking ships. The French king paid him a great amount of silver to leave the city. This made Ragnar very wealthy and increased his fame.<br><br>Ragnar had several sons who also became famous Viking warriors. Their names were Ivar the Boneless, Bjorn Ironside, and Halfdan Ragnarsson. These sons later led the Great Heathen Army in England. Ragnar died during an attack on England. King Aella of Northumbria captured him and put him in a snake pit as punishment. Before he died, Ragnar said that his sons would punish King Aella for killing him. His sons kept this promise. They attacked England, captured King Aella, and killed him to avenge their father's death.`,
+                dictionary: {"poisonous":"zehirli","wealthy":"zengin","punishment":"ceza","avenge":"intikamını almak","pit":"çukur"}
+            },
+            {
+                icon: "🦁", title: "34. Richard the Lionheart", src: "34_Richard_the_Lionheart.mp3",
+                text: `Richard the Lionheart was a famous King of England who is best known as a heroic warrior of the Crusades. He was born in 1157 and became king in 1189. Although he ruled England, he spent almost his entire life away from the country, fighting battles in France and the Middle East. He earned his nickname, "the Lionheart," because of his incredible bravery and military skill on the battlefield.<br><br>When the Muslim leader Salahuddin captured Jerusalem, Richard led the Third Crusade to win the holy city back for the Christians. He won several major victories, including the important Battle of Arsuf in 1191, where his brilliant tactics defeated Salahuddin's powerful army. Even though the two great leaders fought fiercely against each other, they shared a deep mutual respect and sent gifts to one another.<br><br>Despite his battlefield successes, Richard could not capture Jerusalem. He eventually signed a peace treaty with Salahuddin that allowed Christian pilgrims to visit the city safely. On his journey home, Richard was captured and held for a huge ransom. He died from a crossbow wound while fighting in France, forever remembered as the ultimate medieval knight.`,
+                dictionary: {"incredible":"inanılmaz","fiercely":"şiddetle","mutual":"karşılıklı","pilgrims":"hacılar","ransom":"fidye"}
+            },
+            {
+                icon: "🌲", title: "35. Rob Roy", src: "35_Rob_Roy.mp3",
+                text: `Rob Roy MacGregor was a famous hero from Scotland. He lived in the Scottish Highlands from 1671 to 1734. At that time, England controlled Scotland very strongly. The English government made strict laws that were hard for Scottish families, called "clans." Rob Roy belonged to the MacGregor clan, which had a very difficult life because of these laws.<br><br>Rob Roy began as a farmer and sold cattle. He borrowed money from a rich noble to make his business bigger. But when he could not pay the money back, the rich man took his land. Rob Roy lost everything. Because of this, he became an outlaw. He started to steal cattle from rich people and gave some to poor families.<br><br>People called him the "Scottish Robin Hood." The English police offered money to anyone who could catch him. But Rob Roy was smart. For many years, he hid in the mountains of the Highlands.`,
+                dictionary: {"strict":"katı","cattle":"sığır","outlaw":"kanun kaçağı"}
+            },
+            {
+                icon: "🕌", title: "36. Salahuddin Ayyubi", src: "36_Salahuddin_Ayyubi.mp3",
+                text: `Salahuddin Ayyubi, also known as Saladin, was born in 1137 in Tikrit, Iraq. He came from a family of soldiers and learned about war when he was very young. He served his uncle, Shirkuh, who taught him how to be a leader. Later, Salahuddin became the ruler of Egypt after he won an important battle.<br><br>Salahuddin had a strong faith in Islam. At that time, many Muslim rulers fought against each other. Salahuddin worked hard to stop this and bring all Muslim lands together. His main goal was to defend his people against the Crusader armies from Europe.<br><br>His most famous moment happened in 1187 at the Battle of Hattin. His army won a huge victory against the Crusaders. After this battle, he captured the holy city of Jerusalem. He was a fair man. He treated the people in the city with kindness and respect. He let Christians and Jews stay in peace or leave safely if they wanted. After this victory, he protected Jerusalem from new attacks. He continued to lead his army until he died in 1193. Today, history remembers Salahuddin as a great hero who united Muslims and showed fairness to everyone.`,
+                dictionary: {"faith":"inanç","defend":"savunmak","fairness":"adalet"}
+            },
+            {
+                icon: "🦅", title: "37. Skanderbeg", src: "37_Skanderbeg.mp3",
+                text: `Skanderbeg, whose real name was Gjergj Kastrioti, is known as the national hero of Albania. He lived in the 15th century and became famous for his bravery and leadership. As a child, he was taken by the Ottoman Empire and trained as a soldier. He served the Ottomans for many years, but in 1443 he returned to Albania and started a great revolt for freedom. He raised the flag with the double-headed eagle, which is still the symbol of Albania today.<br><br>With his army, Skanderbeg fought many battles against the powerful Ottoman forces. Although his army was small, he used clever tactics and the knowledge he gained from his years with the Ottomans. For more than 20 years, he protected Albania and inspired Christian Europe with his courage.<br><br>Skanderbeg became a symbol of resistance. European leaders respected him, and the Pope called him the "Athlete of Christ." His victories showed that a small nation could stand strong against a great empire. Skanderbeg died in 1468, but his legend lived on. For Albanians, he is not only a warrior but also the father of their nation. His name and his flag continue to inspire Albanian pride and unity.`,
+                dictionary: {"bravery":"cesaret","revolt":"isyan","inspired":"ilham verdi","resistance":"direniş"}
+            },
+            {
+                icon: "🗡️", title: "38. Spartacus", src: "38_Spartacus.mp3",
+                text: `Spartacus was a famous gladiator and a leader in the Roman Republic. At that time, Rome had a big empire with many slaves. Roman masters treated these slaves very badly. They forced them to work hard and fight games for fun. Spartacus was a man from Thrace. The Romans captured him and sent him to a gladiator school in Capua.<br><br>In 73 BC, Spartacus led a group of about 70 gladiators. They escaped from their school using kitchen knives. They went to Mount Vesuvius, a big volcano. Many other slaves joined them there. The Roman government sent armies to stop them. At first, Spartacus defeated every Roman army. He moved through Italy and freed thousands of slaves. His army became very large.<br><br>Spartacus was a smart military leader. He taught his followers to fight like real soldiers. He won big battles against Roman leaders. The Romans became very worried. They sent a general named Crassus with a huge army. After several fights, Crassus finally defeated Spartacus in 71 BC. Spartacus died in the final battle, but nobody found his body. The Romans captured about 6,000 rebels. They put them on crosses along the road to warn other slaves. Today, people remember Spartacus as a symbol of freedom.`,
+                dictionary: {"forced":"zorladı","escaped":"kaçtı","followers":"takipçiler","rebels":"isyancılar"}
+            },
+            {
+                icon: "👑", title: "39. Stefan Dušan", src: "39_Stefan_Dusan.mp3",
+                text: `King Stefan Dušan ruled Serbia from 1331 to 1355. He built a strong Serbian Empire while the Ottoman Turks were growing powerful in the east. The Ottomans were taking land from the Byzantine Empire. Dušan used this situation to expand his own territory, capturing parts of Macedonia and Greece.<br><br>Dušan recognized the Ottoman threat. He tried to form alliances with other Christian nations to stop them. He spoke with the Pope and Venice about creating a united army against the Ottomans. He also made agreements with the Ottomans when it suited him. Sometimes he hired Ottoman soldiers for his army. Other times he made peace treaties with them.<br><br>Dušan's main goal was to capture Constantinople before the Ottomans could. He wanted to create a Christian empire strong enough to resist the Ottomans. However, Dušan died suddenly in 1355. After his death, his empire weakened and became divided. Without his leadership, later Serbian rulers could not stop the Ottomans. Just 34 years after Dušan's death, the Ottomans defeated the Serbs at the Battle of Maritsa, beginning their control over Serbian lands.`,
+                dictionary: {"expand":"genişletmek","threat":"tehdit","alliances":"ittifaklar","agreements":"anlaşmalar","weakened":"zayıfladı"}
+            },
+            {
+                icon: "🐎", title: "40. Subutai", src: "40_Subutai.mp3",
+                text: `Subutai was the greatest and most trusted military commander of Genghis Khan. While Genghis Khan was the supreme ruler, Subutai was the brilliant mind behind many of the Mongol Empire's most spectacular victories. He was not born into nobility; he was the son of a blacksmith who rose to command through pure genius. Subutai directed more than twenty campaigns, conquering thirty-two nations and winning sixty-five pitched battles. He was a master of strategy, using spies, speed, and coordinated attacks over vast distances.<br><br>His most famous achievement came during the Mongol invasion of Europe. In 1241, Subutai organized an incredible plan. He split his army into different groups that marched hundreds of miles apart, keeping perfectly in touch. Within a single week, his separated forces destroyed both the Polish-German army at the Battle of Liegnitz and the massive Hungarian army at the Battle of Mohi.<br><br>European knights with heavy armor could not stop his fast, disciplined horse archers. Subutai conquered more territory than any other commander in history, successfully leading armies from the borders of the Pacific Ocean all the way to the very heart of Central Europe.`,
+                dictionary: {"supreme":"yüce","blacksmith":"demirci","genius":"deha","coordinated":"koordineli","invasion":"işgal","separated":"ayrılmış"}
+            },
+            {
+                icon: "👑", title: "41. Tamar of Georgia", src: "41_Tamar_of_Georgia.mp3",
+                text: `Tamar the Great was the brilliant and powerful queen who led the Kingdom of Georgia into its absolute Golden Age. She was crowned as co-ruler with her father in 1178. Because she was a woman, many powerful nobles refused to accept her authority at first. However, Tamar quickly proved she was a masterful politician and a fierce leader. She carefully replaced disloyal officials with people she trusted and built a highly disciplined, powerful army.<br><br>Under her command, the Georgian military became unstoppable. They launched massive, successful campaigns against the neighboring Seljuk and Byzantine empires, conquering lands stretching from the Black Sea to the Caspian Sea. Despite her military might, she was famous for her fairness and deep religious faith.<br><br>She stopped the death penalty and rarely ordered harsh punishments. She also supported famous poets, builders, and scholars, making her kingdom a brilliant center of Christian culture and learning. Her people loved her so much that she was officially given the title of "Mepe," which means "King," proving that she ruled with the absolute power and ultimate respect of any great male monarch in history.`,
+                dictionary: {"masterful":"ustaca","disloyal":"sadakatsiz","unstoppable":"durdurulamaz","fairness":"adalet","penalty":"ceza","monarch":"hükümdar"}
+            },
+            {
+                icon: "⚔️", title: "42. Taras Bulba", src: "42_Taras_Bulba.mp3",
+                text: `Taras Bulba was a famous Cossack warrior in Ukraine during the 1500s. At that time, Poland ruled parts of Ukraine. The Cossack people wanted to be free and keep their traditions. The Polish rulers treated them very badly. They took Cossack land and did not respect their religion. This made Taras and his people very angry.<br><br>Taras had two sons, Andriy and Ostap. They went to school in Kyiv, but Taras wanted them to be strong soldiers. When they returned home, he took them to the Cossack army camp. They started to fight against the Polish army. Taras was a brave leader and won many battles.<br><br>However, a sad thing happened during a fight. His younger son, Andriy, fell in love with a Polish woman. He left his own people to join the enemy. Taras was furious at this betrayal. He caught Andriy and killed him. He famously said, "I gave you life, and I will take it away." Later, the Polish soldiers caught his older son, Ostap. They killed him in the city of Warsaw. Taras watched his son die but could not save him. Taras continued to fight, but the Polish army finally caught and killed him. Today, people remember Taras Bulba as a hero.`,
+                dictionary: {"traditions":"gelenekler","betrayal":"ihanet","furious":"öfkeli"}
+            },
+            {
+                icon: "🗡️", title: "43. Tariq ibn Ziyad", src: "43_Tariq_ibn_Ziyad.mp3",
+                text: `Tariq ibn Ziyad was a famous Muslim commander in the 700s. At that time, the Visigoth kingdom ruled Spain. The people of North Africa wanted to go across the Mediterranean Sea. The Visigoth king, Roderick, was a harsh ruler. There were many problems inside his kingdom, and some rich nobles were not happy with him.<br><br>This situation was good for Tariq ibn Ziyad. He was a governor in North Africa. In 711 AD, he led an army of about 7,000 soldiers across the water between Africa and Europe. He landed at a large rock. Later, people named it "Jabal Tariq," or the Mountain of Tariq. Today, we know it as Gibraltar.<br><br>When his soldiers arrived, Tariq ordered them to burn their boats. He told his army: "The sea is behind you, and the enemy is before you." This brave speech helped his soldiers feel strong. Tariq’s army fought King Roderick at the Battle of Guadalete. Although the Visigoth army was much larger, Tariq used better plans. The unhappy Visigoth nobles also helped him win. King Roderick died in this fight. After this victory, Tariq took important cities like Cordoba and Toledo. His success began Muslim rule in Spain for nearly 800 years. Today, the name Gibraltar still remembers him.`,
+                dictionary: {"harsh":"sert","governor":"vali","speech":"konuşma"}
+            },
+            {
+                icon: "🐎", title: "44. Timur", src: "44_Timur.mp3",
+                text: `Timur, also called Tamerlane, was a powerful ruler and warrior from Central Asia. He was born in 1336. He created a large empire through many wars. He wanted to control all the lands along the Silk Road. He fought and defeated many kings. His army was known for being very strong and very cruel.<br><br>His most famous battle was against the Ottoman Empire. The Ottoman Sultan was named Yıldırım Bayezid. Bayezid was also a great conqueror and had a powerful army. The two armies met at the Battle of Ankara in 1402. The fighting was long and fierce in the very hot sun.<br><br>Timur was a more clever military leader. He knew that some soldiers in Bayezid's army were unhappy. He convinced them to switch sides during the battle. This was the turning point. Timur won the battle. His army captured Sultan Bayezid. Bayezid became Timur's prisoner. The capture of the great Ottoman Sultan was a huge shock to the world. It stopped the growth of the Ottoman Empire for a time.<br><br>After his victory, Timur continued traveling and conquering new lands. He took the captured Sultan Bayezid with him as he moved from place to place. Bayezid died while he was still Timur's prisoner. Timur died in 1405 while planning to invade China. His death saved China from his attack. Timur was one of history's greatest conquerors, also a brutal leader who showed no mercy to his enemies.`,
+                dictionary: {"cruel":"zalim","fierce":"şiddetli","convinced":"ikna etti","brutal":"acımasız","mercy":"merhamet"}
+            },
+            {
+                icon: "🏰", title: "45. Tiryaki Hasan Pasha", src: "45_Tiryaki_Hasan_Pasha.mp3",
+                text: `In 1601, a huge Crusader army of 100,000 soldiers attacked Kanije Castle. The castle only had 9,000 Ottoman soldiers. Their commander was Tiryaki Hasan Pasha. He used clever tricks against the enemy commander, Archduke Ferdinand.<br><br>First, he hid his 100 cannons. When the enemy came close, he fired them all at once. Then, he used fake letters. He wanted Archduke Ferdinand to believe a giant Ottoman army was coming. He also showed fake food rooms to prisoners. He even played loud music every day to ruin the enemy's sleep.<br><br>Soon, winter arrived, and the weather became very cold. Many enemy soldiers froze. On the 73rd day, the Ottoman soldiers had almost no food left. At night, Tiryaki Hasan Pasha ordered a surprise attack. Archduke Ferdinand thought the giant army was finally there. He was so scared that he ran away with his army!<br><br>The Ottoman Sultan was very happy. He wrote a special letter and promoted Tiryaki Hasan Pasha to the high rank of Vizier. However, the old commander cried. He cried because, in his youth, such small wins did not get big rewards. He was sad that the empire was not as strong and great as before.`,
+                dictionary: {"tricks":"hileler","fake":"sahte","ruin":"mahvetmek","promoted":"terfi ettirildi","rewards":"ödüller"}
+            },
+            {
+                icon: "🗡️", title: "46. Tomyris", src: "46_Tomyris.mp3",
+                text: `Tomyris was the queen of the Massagetae, a strong group in Central Asia around 530 BC. She became the leader after her husband died. At this time, Cyrus the Great was the King of Persia. He was very powerful and wanted to take her land. Cyrus sent a message to marry Tomyris, but she knew this was a trick to take her kingdom. She refused him, so Cyrus decided to attack.<br><br>He crossed a river to fight her army, which was led by her son. The Persians used a clever plan. They left a camp full of wine and food. The Massagetae soldiers did not know wine well. They drank too much and fell asleep. The Persians attacked while they were sleeping and captured Tomyris's son. He felt great shame as a prisoner and killed himself.<br><br>Tomyris was very angry and wanted revenge. She gathered all her soldiers for a second big battle later in 530 BC. The fight was very hard, but the Massagetae army won. King Cyrus died in the battle. After the fight, Tomyris found his body. She cut off his head and put it in a bag of blood. She was a brave queen who defended her people.`,
+                dictionary: {"refused":"reddetti","shame":"utanç","revenge":"intikam","defended":"savundu"}
+            },
+            {
+                icon: "⚓", title: "47. Turgut Reis", src: "47_Turgut_Reis.mp3",
+                text: `Born into a poor family in Muğla, Turgut Reis began as a young sailor and quickly rose to become a skilled captain. He eventually joined forces with the famous Admiral Barbarossa Hayreddin in Algeria. In 1538, Turgut played a key role leading the reserve fleet at the Battle of Preveza. However, while fighting near Corsica, he was captured by the Genoese and spent three years as a prisoner before Barbarossa rescued him.<br><br>Upon regaining his freedom, Turgut built a new fleet and terrorized Spanish waters near Naples. He established a base on Djerba Island, where he famously escaped a Spanish siege by transporting his ships overland to the opposite coast.<br><br>In 1551, Turgut was named Governor of Karli. Sultan Suleiman promised him rule over Tripoli if he helped capture it. Although the campaign succeeded, the position was initially given to another, leading a disappointed Turgut back to the sea. He finally received the Governorship of Tripoli in 1554 after bringing immense treasure to Istanbul. He continued to serve the Ottoman Empire, fighting at the Battle of Djerba in 1560. Turgut Reis ultimately fell in battle during the Siege of Malta in 1565; his tomb stands in Tripoli today.`,
+                dictionary: {"reserve":"yedek","fleet":"filo","rescued":"kurtardı","siege":"kuşatma","transporting":"taşıyarak","immense":"muazzam"}
+            },
+            {
+                icon: "🦇", title: "48. Vlad III", src: "48_Vlad_III.mp3",
+                text: `Vlad III was a prince born in 1431. He ruled Wallachia, which is in Romania today. His father belonged to a special group called the Order of the Dragon. Because of this, people called Vlad "Dracula," which means "son of the dragon."<br><br>When Vlad was a child, his father sent him and his brother Radu to the Ottoman Empire. They were hostages to ensure peace. They lived with Sultan Murad II and his son, Mehmed. The boys learned the Turkish language and how to fight in wars. Vlad was not happy there. He felt like a prisoner and was very angry at the Ottomans. However, his brother Radu liked Mehmed, and they became friends. This eventually made the two brothers enemies.<br><br>Later, Vlad became the ruler of Wallachia. He was a strict leader and became famous as "Vlad the Impaler." He fought against the Ottomans, even though he lived with them before. When Sultan Mehmed started a big war, Vlad fought back hard. He attacked at night to surprise them. He also burned villages and food so the Ottoman army had nothing to eat. But he lost the war. His brother Radu became the new prince with Mehmed's help. Vlad died in a battle near Bucharest in 1476. The Ottomans cut off his head and sent it to Sultan Mehmed as proof.`,
+                dictionary: {"hostages":"rehineler","ensure":"sağlamak/garantiye almak","strict":"katı/sert","impaler":"kazıklı","proof":"kanıt"}
+            },
+            {
+                icon: "🏹", title: "49. William Tell", src: "49_William_Tell.mp3",
+                text: `William Tell was a famous hunter in Switzerland during the early 1300s. At that time, Austria ruled the Swiss lands. The Swiss people wanted their freedom. An Austrian ruler named Gessler arrived. He was a harsh man. To show his power, he put his hat on a pole in Altdorf's main square. He ordered everyone to bow before the hat.<br><br>One day, William Tell and his son walked through the square. They did not bow to the hat. Soldiers arrested Tell and brought him to Gessler. Gessler knew Tell was an excellent crossbow shooter. He created a cruel test. He ordered Tell's son to stand before a tree with an apple on his head. Tell had to shoot the apple. Success meant freedom. Failure meant death. Tell took two arrows. He used one arrow to shoot the apple perfectly. His son was safe. Gessler asked about the second arrow. Tell answered, "If I had hurt my son, the second arrow was for you."<br><br>Gessler ordered Tell's arrest. Soldiers put Tell on a boat to a prison. A storm came on the lake. The frightened Austrians freed Tell to steer the boat. Tell guided the boat to shore and escaped. Later, Tell used his second arrow against Gessler. This action inspired the Swiss rebellion. The Swiss people fought and won their independence.`,
+                dictionary: {"harsh":"sert","pole":"direk","bow":"eğilmek","cruel":"zalim","frightened":"korkmuş","steer":"yönlendirmek"}
+            },
+            {
+                icon: "⚔️", title: "50. William Wallace", src: "50_William_Wallace.mp3",
+                text: `William Wallace was a famous fighter in Scotland during the late 1200s. At that time, England ruled Scotland, and the Scottish people wanted their freedom. An English ruler named Edward I was very powerful. He placed English soldiers in Scottish towns to control the people. One day, English soldiers attacked Wallace's town and killed his wife. This made Wallace very angry.<br><br>He decided to fight against the English. He gathered other Scots who wanted freedom and became their leader. They attacked English forts across Scotland. Their most important victory was at the Battle of Stirling Bridge in 1297.<br><br>However, the English king sent a large army to stop Wallace. At the Battle of Falkirk in 1298, the English army defeated Wallace's forces. Wallace had to escape and hide, but he continued to fight for Scottish freedom for several years. Another Scottish noble, Robert the Bruce, later became the main leader. In 1305, English soldiers captured Wallace. They brought him to London for a trial. The court found him guilty of fighting against the king. They executed him in a cruel way, but he is still remembered as a hero.`,
+                dictionary: {"forts":"kaleler","trial":"duruşma","guilty":"suçlu","executed":"idam edildi","cruel":"zalim"}
+            },
+            {
+                icon: "🏕️", title: "51. Yusuf Pasha", src: "51_Yusuf_Pasha.mp3",
+                text: `In 1788, a large Austrian army of about 100,000 soldiers camped in Romania to fight the Ottoman commander Yusuf Pasha. However, they never fought the enemy. Because of a foolish mistake and alcohol, the army destroyed itself.<br><br>The trouble began one night when Austrian horsemen crossed a river and bought strong drinks from local people. They drank too much. When foot soldiers arrived and asked to share the drink, the horsemen refused. A big fight started between them, and someone fired a gun. This loud shot made the soldiers panic and run back toward their main camp in the dark.<br><br>In the camp, soldiers woke up to the noise. They believed the enemy was attacking. Commanders shouted "Halt!"—which means stop in German—to control their men. However, soldiers who spoke different languages heard "Allah!" instead of "Halt!" They were very afraid and fired guns and cannons at their own friends. Two days later, Yusuf Pasha arrived for a battle. Instead, he found dead and wounded Austrian soldiers everywhere. The survivors had escaped, so the Ottomans took the town easily. They won the victory because of the Austrian army's total confusion.`,
+                dictionary: {"foolish":"aptalca","refused":"reddetti","panic":"paniklemek","wounded":"yaralı","survivors":"hayatta kalanlar","confusion":"kafa karışıklığı"}
+            },
+            {
+                icon: "👑", title: "52. Zenobia", src: "52_Zenobia.mp3",
+                text: `Queen Zenobia was the brilliant and courageous ruler of the Palmyrene Empire in Syria during the third century. When her husband died in 267 AD, she took control of the kingdom. At this time, the mighty Roman Empire was facing many crises and was very weak. Zenobia saw an opportunity to build her own empire. She was highly educated, rode horses with her soldiers, and could march for miles on foot.<br><br>In a shocking move, she led her powerful army to conquer Egypt, one of Rome's wealthiest and most important provinces. She also expanded her borders into Asia Minor. For a brief time, she controlled the entire eastern Mediterranean and declared herself an empress.<br><br>However, the new Roman Emperor, Aurelian, was a fierce military leader. He marched his army eastward to crush her rebellion. After several huge battles, Aurelian defeated Zenobia's forces and laid siege to the beautiful city of Palmyra. Zenobia tried to escape on a camel but was captured by Roman soldiers. She was taken to Rome in golden chains, but she is remembered forever as the warrior queen who challenged the greatest empire of the ancient world.`,
+                dictionary: {"courageous":"cesur","crises":"krizler","provinces":"eyaletler","empress":"imparatoriçe","fierce":"şiddetli","rebellion":"isyan","siege":"kuşatma"}
+            }
+        ]
+    },
+    freedom: {
+        id: "freedom",
+        title: "Freedom Fighters",
+        cover: "✊",
+        color: "#c0392b",
+        description: "A complete collection of 39 listening lessons exploring the lives and struggles of legendary freedom fighters and revolutionaries around the world.",
+        baseUrl: "https://raw.githubusercontent.com/dogierez/fredom-fighters/main/",
+        tracks: [
+            {
+                icon: "🇩🇿", title: "1. Ahmed Ben Bella", src: "01_Ahmed_Ben_Bella.mp3",
+                text: `Ahmed Ben Bella was a revolutionary leader and the first President of an independent Algeria. As a young man, he fought for the French army during World War II, but he realized that his own people in Algeria were treated unfairly by French colonial rulers. He decided to fight for his country's freedom and became one of the main founders of the National Liberation Front (FLN). He helped organize a massive war for independence against France that began in 1954. Because of his leadership, he was arrested by the French military and spent many years in prison during the war. When Algeria finally won its independence in 1962, he was released and chosen to lead the new nation. He worked hard to rebuild the country and support other anti-colonial movements across Africa. Although he was later removed from power by his own military, he is remembered today as a founding father of modern Algeria and a great hero of African independence.`,
+                dictionary: {"revolutionary":"devrimci","unfairly":"haksızca","colonial":"sömürgeci","founders":"kurucular","massive":"devasa","independence":"bağımsızlık","arrested":"tutuklandı","released":"serbest bırakıldı","rebuild":"yeniden inşa etmek"}
+            },
+            {
+                icon: "🇧🇦", title: "2. Alija Izetbegović", src: "02_Alija_Izetbegovic.mp3",
+                text: `Alija Izetbegović was a lawyer and philosopher who became the first President of Bosnia and Herzegovina. He spent many years in prison because the Communist government did not like his religious and political ideas. When Yugoslavia began to break apart, he led his people toward independence. During the Bosnian War, he stayed in the capital city of Sarajevo while it was under attack. He worked hard to protect the unity of his country and to save his people from destruction. In 1995, he signed the Dayton Peace Agreement to end the fighting. He is known as the father of the Bosnian nation because he helped the country survive its most difficult time. He is respected for his wisdom and his dedication to freedom and justice.`,
+                dictionary: {"philosopher":"filozof","independence":"bağımsızlık","destruction":"yıkım","agreement":"anlaşma","survive":"hayatta kalmak","dedication":"adanmışlık","justice":"adalet"}
+            },
+            {
+                icon: "🇬🇼", title: "3. Amílcar Cabral", src: "03_Amilcar_Cabral.mp3",
+                text: `Amílcar Cabral was a brilliant engineer and a revolutionary leader in West Africa. He fought against Portuguese colonial rule in Guinea-Bissau and Cape Verde. Cabral believed that freedom was not just about removing foreign soldiers, but also about improving the lives of the poor through education and farming. He organized a very successful guerrilla war that forced the Portuguese army to retreat. He was a great thinker whose books about culture and independence are still studied today. Tragically, he was killed by a rival group just months before his country became free. Even though he did not see the independence he fought for, he is remembered as one of Africa’s greatest heroes.`,
+                dictionary: {"brilliant":"parlak/zeki","improving":"geliştirmek/iyileştirmek","successful":"başarılı","guerrilla":"gerilla","retreat":"geri çekilmek","tragically":"trajik bir şekilde","rival":"rakip"}
+            },
+            {
+                icon: "✊🏾", title: "4. Angela Davis", src: "04_Angela_Davis.mp3",
+                text: `Angela Davis is a famous activist and teacher in the United States. She became a leader in the civil rights movement during the 1960s. She spoke out strongly against racism and the unfair treatment of prisoners. In 1970, she became one of the most famous women in the world when she was placed on the FBI's Most Wanted List. She spent over a year in jail for a crime she did not commit. After a long trial, she was found not guilty. Today, she continues to fight for the rights of all people. She believes that we must change the prison system and work for true equality. She is a powerful symbol of resistance and courage for people around the world.`,
+                dictionary: {"activist":"aktivist","civil":"sivil","racism":"ırkçılık","treatment":"muamele","commit":"işlemek","trial":"duruşma","equality":"eşitlik","resistance":"direniş","courage":"cesaret"}
+            },
+            {
+                icon: "🛡️", title: "5. Assata Shakur", src: "05_Assata_Shakur.mp3",
+                text: `Assata Shakur was an activist in the Black Panther Party who fought for the rights of Black Americans. In 1973, she was involved in a gunfight on a highway where a police officer was killed. She was injured and captured by the police. Even though she said she was innocent, she was sent to prison for life. In 1979, she managed to escape from prison with the help of her friends. She traveled secretly to Cuba, where the government gave her protection. She still lives in Cuba today. Many activists see her as a hero who survived a very unfair system, while the US government still wants to arrest her. Her story is a famous example of the struggle for civil rights.`,
+                dictionary: {"involved":"karıştı/dahil oldu","injured":"yaralandı","captured":"yakalandı","innocent":"masum","escape":"kaçmak","secretly":"gizlice","protection":"koruma","struggle":"mücadele"}
+            },
+            {
+                icon: "🇳🇮", title: "6. Augusto Sandino", src: "06_Augusto_Sandino.mp3",
+                text: `Augusto Sandino was a fierce revolutionary leader in Nicaragua who fought against foreign control. During the 1920s, the United States military occupied Nicaragua to protect American businesses and control the government. Sandino believed this was deeply unfair and completely unacceptable. He refused to surrender his weapons and organized a peasant army to fight the powerful US Marines. Even though his army was small and poorly equipped, Sandino used clever guerrilla warfare. He launched sudden attacks from the thick jungle mountains, making it impossible for the foreign soldiers to defeat him. He became a famous symbol of resistance across Latin America, proving that a small nation could stand up to a massive empire. Eventually, the US troops left Nicaragua, but the local military commander, Anastasio Somoza, saw Sandino as a threat. In 1934, Sandino was invited to a peace dinner and was assassinated afterward. Decades later, a famous revolutionary group called the Sandinistas took his name and finally overthrew the Somoza dictatorship to honor his dream of true freedom.`,
+                dictionary: {"fierce":"şiddetli/vahşi","occupied":"işgal etti","unacceptable":"kabul edilemez","surrender":"teslim olmak","peasant":"köylü","equipped":"donanımlı","impossible":"imkansız","resistance":"direniş","empire":"imparatorluk","assassinated":"suikasta kurban gitti","overthrew":"devirdi","dictatorship":"diktatörlük"}
+            },
+            {
+                icon: "🇮🇳", title: "7. Bhagat Singh", src: "07_Bhagat_Singh.mp3",
+                text: `Bhagat Singh was a young and brave revolutionary in India. He fought against British rule because he wanted his country to be free and fair for everyone. He did not agree with non-violent protests only; he believed that strong action was needed to wake up the people. In 1929, he threw a small bomb into a government building to protest against unfair laws. He did not want to hurt anyone, but he wanted the British to listen. He was arrested and stayed very strong while in prison. The British executed him when he was only 23 years old. His sacrifice made him a legend in India and Pakistan. Today, young people still look to him as a symbol of bravery and patriotism.`,
+                dictionary: {"brave":"cesur","non-violent":"şiddetsiz","protest":"protesto","executed":"idam edildi","sacrifice":"fedakarlık","legend":"efsane","patriotism":"vatanseverlik"}
+            },
+            {
+                icon: "🇮🇪", title: "8. Bobby Sands", src: "08_Bobby_Sands.mp3",
+                text: `Bobby Sands was a member of the IRA in Northern Ireland. He wanted his country to be independent of British rule. While he was in prison, he led a famous hunger strike in 1981. He and other prisoners refused to eat because they wanted to be treated as political prisoners, not as criminals. During the strike, the people actually elected him to the British Parliament. After 66 days without food, Bobby Sands died. His death caused a massive reaction around the world and brought a lot of attention to the problems in Northern Ireland. He is remembered as a man who was willing to give his life for his political beliefs and his country’s freedom.`,
+                dictionary: {"independent":"bağımsız","strike":"grev","criminals":"suçlular","elected":"seçildi","parliament":"parlamento","reaction":"tepki","attention":"dikkat","beliefs":"inançlar"}
+            },
+            {
+                icon: "⭐", title: "9. Che Guevara", src: "09_Che_Guevara.mp3",
+                text: `Ernesto "Che" Guevara was a doctor from Argentina who became a global symbol of revolution. While traveling as a young man, he saw the terrible poverty in Latin America and decided to fight for the poor. He joined Fidel Castro and helped lead the Cuban Revolution to victory in 1959. After the war, he held important jobs in the new government, but he wanted to help other countries too. He traveled to Africa and then to Bolivia to start new revolutions. He was captured and killed in the mountains of Bolivia in 1967. Today, his face is famous all over the world. People see him as a symbol of rebellion against unfair power.`,
+                dictionary: {"global":"küresel","poverty":"yoksulluk","victory":"zafer","government":"hükümet","captured":"yakalandı","rebellion":"isyan"}
+            },
+            {
+                icon: "🇹🇷", title: "10. Deniz Gezmiş", src: "10_Deniz_Gezmis.mp3",
+                text: `Deniz Gezmiş was a student leader and a revolutionary in Turkey. During the late 1960s, he led many protests against foreign influence and for the rights of workers and students. He believed that Turkey should be a completely independent and socialist country. He founded a group that used armed action to fight the government. After a military coup in 1971, he was caught and put on trial. He remained very brave and never apologized for his actions. He was executed by hanging in 1972 at the age of 25. His death made him a hero for many young people in Turkey. He is still remembered today as a symbol of the fight for a better and fairer world.`,
+                dictionary: {"influence":"etki","socialist":"sosyalist","founded":"kurdu","armed":"silahlı","coup":"darbe","trial":"duruşma","apologized":"özür diledi","executed":"idam edildi","fairer":"daha adil"}
+            },
+            {
+                icon: "⛪", title: "11. Dietrich Bonhoeffer", src: "11_Dietrich_Bonhoeffer.mp3",
+                text: `Dietrich Bonhoeffer was a brave Christian pastor and a leading thinker who fought a dangerous secret war against the Nazi government in Germany. When Adolf Hitler came to power, many church leaders stayed silent or supported the regime, but Bonhoeffer believed that true faith required standing up against pure evil. He openly criticized the government's racist laws and secretly joined the German resistance movement. He used his position to help Jewish people escape to safety in other countries. Eventually, he even participated in a secret plan to overthrow Hitler. In 1943, he was arrested by the Gestapo and sent to a prison camp. Even in prison, he continued to write beautiful letters and books about faith, courage, and doing the right thing. He was executed in a concentration camp just weeks before the end of World War II. Today, he is remembered worldwide as a brilliant symbol of moral courage and sacrificing oneself for justice.`,
+                dictionary: {"pastor":"papaz","regime":"rejim","faith":"inanç","criticized":"eleştirdi","overthrow":"devirmek","concentration":"toplama","moral":"ahlaki"}
+            },
+            {
+                icon: "🇩🇿", title: "12. Djamila Bouhired", src: "12_Djamila_Bouhired.mp3",
+                text: `Djamila Bouhired is one of the most famous women in the history of North Africa. She was a resistance fighter who fought for Algeria's independence from France. During the war, she carried out dangerous missions in the city of Algiers. She was eventually captured and tortured by French soldiers, but she never gave away the secrets of her group. She was sentenced to death, but people all over the world protested to save her life. Because of this international pressure, she was released when Algeria became free in 1962. She is a national hero and a symbol of how women played a vital role in the struggle for freedom and national dignity.`,
+                dictionary: {"dangerous":"tehlikeli","missions":"görevler","tortured":"işkence gördü","sentenced":"mahkum edildi","pressure":"baskı","released":"serbest bırakıldı","vital":"hayati","dignity":"haysiyet/onur"}
+            },
+            {
+                icon: "🇲🇽", title: "13. Emiliano Zapata", src: "13_Emiliano_Zapata.mp3",
+                text: `Emiliano Zapata was a legendary revolutionary leader who fought for the rights of the poorest people in Mexico. He grew up in a small farming village and saw how wealthy landowners and corrupt politicians stole land from the peasants. Zapata decided to fight back. During the Mexican Revolution in 1910, he organized a powerful army of farmers called the Liberation Army of the South. His famous motto was "Tierra y Libertad," which means "Land and Freedom." He demanded that the stolen lands be returned to the poor farmers who actually worked the soil. Zapata was a man of deep principles who refused to be bought by rich politicians. He only fought for justice and equality. Because he was so popular and powerful, the government saw him as a major threat. In 1919, he was tricked into attending a meeting and was brutally assassinated by the military. Although he was killed, his ideas survived, and he remains a beloved national hero for the poor and indigenous people of Mexico.`,
+                dictionary: {"legendary":"efsanevi","wealthy":"zengin","corrupt":"yozlaşmış","peasants":"köylüler","liberation":"kurtuluş","motto":"slogan","principles":"prensipler","justice":"adalet","equality":"eşitlik","tricked":"kandırıldı","brutally":"vahşice","indigenous":"yerli"}
+            },
+            {
+                icon: "✍️", title: "14. Frantz Fanon", src: "14_Frantz_Fanon.mp3",
+                text: `Frantz Fanon was a doctor and a very important writer from Martinique. He studied how colonialism and racism hurt the minds of people. He moved to Algeria and joined the fight for independence against France. He wrote several famous books, like The Wretched of the Earth, which explained why people have a right to fight for their freedom. He believed that colonized people must stand up and be proud of their own culture to be truly free. His ideas inspired many freedom movements in Africa, the Caribbean, and America. Although he died very young from a sickness, his books are still read by millions of people who want to understand justice and equality.`,
+                dictionary: {"colonialism":"sömürgecilik","racism":"ırkçılık","wretched":"sefil/zavallı","colonized":"sömürgeleştirilmiş","truly":"gerçekten","inspired":"ilham verdi"}
+            },
+            {
+                icon: "✊🏿", title: "15. Fred Hampton", src: "15_Fred_Hampton.mp3",
+                text: `Fred Hampton was a brilliant young leader in the Black Panther Party in Chicago. He was a very talented speaker who wanted to bring people of all races together to fight against poverty and racism. He created the "Rainbow Coalition" to unite Black, Hispanic, and white working-class people. He also started programs to give free breakfast to children in poor neighborhoods. The government and the police were very afraid of his power to unite people. In 1969, while he was sleeping in his apartment, the police and the FBI raided the building and killed him. He was only 21 years old. His death is seen as a tragic assassination of a man who wanted peace and unity for everyone.`,
+                dictionary: {"brilliant":"parlak","talented":"yetenekli","poverty":"yoksulluk","coalition":"koalisyon","neighborhoods":"mahalleler","raided":"baskın yaptı","tragic":"trajik","assassination":"suikast","unity":"birlik"}
+            },
+            {
+                icon: "💥", title: "16. Gavrilo Princip", src: "16_Gavrilo_Princip.mp3",
+                text: `Gavrilo Princip was a young student from a poor farming family in Bosnia. At that time, his homeland was controlled by the powerful Austro-Hungarian Empire. Princip strongly believed that all Southern Slavic people should be free from foreign rule and united into one independent nation called Yugoslavia. He joined a secret revolutionary group to fight for this dream. On June 28, 1914, when Archduke Franz Ferdinand of Austria visited the city of Sarajevo, Princip assassinated him and his wife. He believed this dramatic action would spark a revolution and free his people. Instead, this event started a massive chain reaction that led directly to the First World War. Because he was under twenty years old, the government could not execute him, so he was sent to prison. He died of illness in his cell in 1918. Today, people still argue about his legacy. Some view him as a dangerous terrorist who started a terrible global war, while others see him as a brave patriot who sacrificed himself for freedom.`,
+                dictionary: {"homeland":"memleket","slavic":"slav","dramatic":"dramatik","spark":"ateşlemek/kıvılcım","massive":"devasa","legacy":"miras","patriot":"vatansever","sacrificed":"feda etti"}
+            },
+            {
+                icon: "🇻🇳", title: "17. Ho Chi Minh", src: "17_Ho_Chi_Minh.mp3",
+                text: `Ho Chi Minh was the most important leader in the history of Vietnam. He spent many years traveling the world to find a way to make his country free from French rule. He founded the Communist Party of Vietnam and led the resistance for decades. After the French left, he led North Vietnam during the war against the United States. He was a very simple man who lived a quiet life, but his people loved him and called him "Uncle Ho." He died before the war ended, but his dream of a united and independent Vietnam finally came true in 1975. The largest city in the country was renamed Ho Chi Minh City to honor his memory.`,
+                dictionary: {"resistance":"direniş","decades":"onyıllar","simple":"basit","united":"birleşik","honor":"onurlandırmak","memory":"anı/hatıra"}
+            },
+            {
+                icon: "☘️", title: "18. James Connolly", src: "18_James_Connolly.mp3",
+                text: `James Connolly was a dedicated socialist and a brave leader of the Irish revolutionary movement. He was born to a very poor Irish immigrant family in Scotland and started working when he was just eleven years old. He believed strongly that Ireland should be a completely free republic, but he also believed that true freedom meant protecting the rights of poor workers and fighting against greedy businesses. He organized labor unions and led massive strikes to demand fair pay and better lives for the working class. In 1916, he became one of the main leaders of the famous Easter Rising in Dublin. He commanded the rebel forces fighting against the powerful British army. He was severely wounded during the battle but continued to lead his soldiers from a stretcher. When the rebellion failed, the British army captured him. Because he was too injured to stand, they tied him to a chair and executed him by firing squad. His death made the Irish people furious and sparked the final war for independence.`,
+                dictionary: {"dedicated":"adanmış","immigrant":"göçmen","republic":"cumhuriyet","greedy":"açgözlü","unions":"sendikalar","strikes":"grevler","rebel":"isyancı","severely":"ciddi şekilde","stretcher":"sedye","rebellion":"isyan","furious":"öfkeli"}
+            },
+            {
+                icon: "🇲🇿", title: "19. Josina Machel", src: "19_Josina_Machel.mp3",
+                text: `Josina Machel was a fearless revolutionary who fought for the freedom of Mozambique and for the equal rights of women across Africa. When she was just a teenager, she joined the fight against Portuguese colonial rule. She tried to escape the country to join the liberation army but was captured and put in prison. She never gave up, and after she was freed, she finally reached the military camps. Josina became a key leader in the armed struggle, fighting directly on the front lines alongside male soldiers. She strongly believed that her country could never be truly free unless women were also free from traditional oppression. She helped create schools and health clinics for families suffering during the war and organized the first women's military unit. Tragically, she died of a severe illness in 1971 when she was only 25 years old. In Mozambique, the day of her death is now celebrated as National Women's Day to honor her incredible legacy.`,
+                dictionary: {"fearless":"korkusuz","colonial":"sömürgeci","liberation":"kurtuluş","alongside":"yanında","oppression":"baskı/zulüm","clinics":"klinikler","severe":"şiddetli","legacy":"miras"}
+            },
+            {
+                icon: "🇵🇸", title: "20. Leila Khaled", src: "20_Leila_Khaled.mp3",
+                text: `Leila Khaled is a famous Palestinian activist and a member of the Popular Front for the Liberation of Palestine (PFLP). She was forced to leave her home in Haifa when she was just a small child during the creation of Israel in 1948. Growing up in a refugee camp, she decided to dedicate her life to fighting for a free Palestine. She became globally famous in 1969 when she became the first woman to hijack an airplane. She did this to bring the world's attention to the struggles of the Palestinian people. Even though her actions were highly controversial and seen as terrorism by many, she became an iconic symbol of Palestinian resistance. A famous photograph of her wearing a kuffiyeh scarf and holding a rifle was printed in newspapers around the world. Today, she continues to speak out for Palestinian rights and refugees. She remains a powerful and deeply debated figure in the long history of the Middle East conflict.`,
+                dictionary: {"forced":"zorlandı","refugee":"mülteci","dedicate":"adamak","globally":"küresel olarak","hijack":"kaçırmak - uçak vs.","controversial":"tartışmalı","terrorism":"terörizm","iconic":"ikonik","rifle":"tüfek","debated":"tartışılan"}
+            },
+            {
+                icon: "🕊️", title: "21. Mahatma Gandhi", src: "21_Mahatma_Gandhi.mp3",
+                text: `Mahatma Gandhi was a lawyer who became the ultimate global symbol of peaceful resistance. He led the massive struggle to free India from the British Empire. Unlike many other revolutionary leaders, Gandhi completely rejected war and violence. He developed a new method of fighting called "Satyagraha," which means holding firmly to the truth. He organized millions of Indian people to refuse to cooperate with British laws through peaceful boycotts, marches, and strikes. One of his most famous actions was the Salt March, where he walked for hundreds of miles to make his own salt to protest an unfair British tax. He spent many years in prison and often went on long hunger strikes to stop violence between different religious groups in India. His peaceful but powerful methods finally forced the British to grant India independence in 1947. Sadly, he was assassinated a few months later by an angry radical. His ideas deeply inspired other famous leaders, including Martin Luther King Jr. and Nelson Mandela.`,
+                dictionary: {"ultimate":"nihai","violence":"şiddet","firmly":"sıkıca","cooperate":"işbirliği yapmak","boycotts":"boykotlar","unfair":"haksız","tax":"vergi","grant":"vermek/bağışlamak","radical":"radikal"}
+            },
+            {
+                icon: "✊🏾", title: "22. Malcolm X", src: "22_Malcolm_X.mp3",
+                text: `Malcolm X was a powerful leader who fought for the rights of African Americans. He believed that Black people should be proud of their identity and defend themselves against unfair treatment. He was a very famous speaker who told the truth about racism in America. Later in his life, he went on a religious trip to Mecca. This experience changed his mind about many things, and he began to believe that people of all races could work together for human rights. He was a man of great courage who was never afraid to say what he thought. He was killed in 1965, but his ideas about justice and self-respect continue to inspire millions of people around the world.`,
+                dictionary: {"identity":"kimlik","defend":"savunmak","treatment":"muamele","racism":"ırkçılık","courage":"cesaret","justice":"adalet","self-respect":"özsaygı"}
+            },
+            {
+                icon: "🗣️", title: "23. Martin Luther King Jr.", src: "23_Martin_Luther_King_Jr.mp3",
+                text: `Martin Luther King Jr. was a Christian minister and the most famous leader of the American Civil Rights Movement. He dedicated his life to fighting against the cruel system of racial segregation in the United States. He strongly believed in non-violent protest, using peaceful marches, speeches, and boycotts to fight unfair laws. He inspired millions of people to stand up for equality without using weapons or hate. In 1963, he gave his famous "I Have a Dream" speech in Washington, D.C., where he shared his hope that one day people would be judged by their character and not by the color of their skin. Because of his incredible leadership, the United States government was forced to pass new laws that protected the rights of Black Americans. He won the Nobel Peace Prize for his peaceful struggle. Tragically, he was assassinated in 1968, but his powerful message of love, justice, and peaceful resistance continues to inspire freedom movements all over the world.`,
+                dictionary: {"minister":"rahip/bakan","cruel":"zalim","segregation":"ayrımcılık","equality":"eşitlik","judged":"yargılanmak","character":"karakter","incredible":"inanılmaz","tragically":"trajik bir şekilde"}
+            },
+            {
+                icon: "⚔️", title: "24. Michael Collins", src: "24_Michael_Collins.mp3",
+                text: `Michael Collins was a brilliant military leader and a key figure in the Irish struggle for independence. He wanted to free Ireland from hundreds of years of British rule. During the famous 1916 Easter Rising, he fought bravely but was captured and sent to a prison camp. When he was released, he completely changed how the Irish fought. Instead of fighting in large, open battles against the massive British army, he created a secret intelligence network and organized a highly effective guerrilla war. His "flying columns" of soldiers used quick, surprise attacks that the British could not stop. In 1921, he helped negotiate a peace treaty that created the Irish Free State, giving Ireland independence but keeping it tied to the British Empire. Sadly, this treaty caused a bitter civil war among the Irish people. In 1922, Collins was tragically shot and killed in an ambush by those who opposed the treaty. He was only 31 years old, but he is remembered as the boldest hero of the Irish revolution.`,
+                dictionary: {"brilliant":"parlak","intelligence":"istihbarat","network":"ağ","effective":"etkili","negotiate":"müzakere etmek","treaty":"antlaşma","bitter":"acı","ambush":"pusu","opposed":"karşı çıktı","boldest":"en cesur"}
+            },
+            {
+                icon: "🎤", title: "25. Miriam Makeba", src: "25_Miriam_Makeba.mp3",
+                text: `Miriam Makeba, known around the world as "Mama Africa," was a legendary singer and a powerful voice against the cruel system of apartheid in South Africa. She used her beautiful music to tell global audiences about the terrible racism and suffering in her home country. Because she spoke the truth so boldly, the South African government took away her passport while she was traveling abroad, forcing her into exile for thirty years. She could not even return home for her mother's funeral. Despite this heartbreak, she never stopped fighting. She performed at the United Nations, demanding that the world take action against the racist government. She became the first African artist to win a Grammy Award, mixing traditional African sounds with popular music. When Nelson Mandela was finally freed from prison, he personally invited her to return home. She is remembered not just as a brilliant musician, but as a fearless warrior who used art as a weapon for freedom.`,
+                dictionary: {"legendary":"efsanevi","apartheid":"ırk ayrımcılığı","audiences":"izleyiciler","boldly":"cesurca","exile":"sürgün","heartbreak":"kalp kırıklığı","demanding":"talep eden","fearless":"korkusuz"}
+            },
+            {
+                icon: "⛓️", title: "26. Nat Turner", src: "26_Nat_Turner.mp3",
+                text: `Nat Turner was an enslaved preacher who led one of the most famous and powerful slave rebellions in American history. Born into slavery in Virginia in 1800, he was a deeply religious man who learned to read and write at a young age. He believed that God was speaking to him through visions, telling him to rise up and fight against the horrific cruelty of slavery. In 1831, after seeing a solar eclipse that he believed was a divine sign, he and a group of trusted friends launched a sudden and violent rebellion. They moved from plantation to plantation, fighting their oppressors and freeing other enslaved people to join their army. The rebellion caused massive panic among wealthy slave owners across the Southern United States. The government sent a large militia to crush the uprising, and Turner was eventually captured and executed. Although the rebellion was defeated, Nat Turner became a powerful symbol of ultimate resistance, proving that enslaved people would never stop fighting for their humanity and freedom.`,
+                dictionary: {"enslaved":"köleleştirilmiş","preacher":"vaiz","rebellions":"isyanlar","visions":"görüler","horrific":"korkunç","cruelty":"zulüm","eclipse":"tutulma","divine":"ilahi","oppressors":"zalimler","militia":"milis","humanity":"insanlık"}
+            },
+            {
+                icon: "🇿🇦", title: "27. Nelson Mandela", src: "27_Nelson_Mandela.mp3",
+                text: `Nelson Mandela is one of the most respected people in history. He spent his life fighting against "apartheid," which was a system of cruel racism in South Africa. He was a lawyer who became a leader of the resistance. Because of his work, the government put him in prison for 27 years. Even while he was in a small cell, he never gave up his hope for a free country. He was finally released in 1990 and worked with his former enemies to create a new democracy. In 1994, he became the first Black President of South Africa. He chose to forgive those who hurt him, and he showed the world the power of peace and reconciliation.`,
+                dictionary: {"respected":"saygıdeğer","apartheid":"ırk ayrımcılığı","cruel":"zalim","resistance":"direniş","former":"eski","democracy":"demokrasi","forgive":"affetmek","reconciliation":"uzlaşma"}
+            },
+            {
+                icon: "🦁", title: "28. Omar Mukhtar", src: "28_Omar_Mukhtar.mp3",
+                text: `Omar Mukhtar was a religious teacher who became a legendary warrior in Libya. When Italy invaded his country, he organized a group of fighters to defend the land. He was an expert in "guerrilla warfare," which means attacking quickly and then hiding in the desert. For 20 years, he fought the powerful Italian army, even though his group was much smaller. He was a man of great honor and faith. He was finally captured and executed by the Italians in 1931. Before he died, he famously said that his people would never surrender. He is known as the "Lion of the Desert" and is a hero to all Libyans and Arabs.`,
+                dictionary: {"warrior":"savaşçı","invaded":"işgal etti","defend":"savunmak","expert":"uzman","hiding":"saklanmak","honor":"onur","faith":"inanç","surrender":"teslim olmak"}
+            },
+            {
+                icon: "🇨🇩", title: "29. Patrice Lumumba", src: "29_Patrice_Lumumba.mp3",
+                text: `Patrice Lumumba was the first Prime Minister of the independent Republic of the Congo. He was a passionate leader who wanted his country to be truly free from Belgian control. He believed that Africa’s wealth should belong to African people. After he was elected, he faced many problems from foreign countries and rebels at home. Because he was very independent and strong, powerful countries became his enemies. He was removed from power in a coup and was killed in 1961. He was only 35 years old. Today, he is seen as a symbol of the struggle for African independence and a martyr for the dream of a united and strong Africa.`,
+                dictionary: {"passionate":"tutkulu","wealth":"zenginlik","elected":"seçildi","rebels":"isyancılar","coup":"darbe","symbol":"sembol","martyr":"şehit"}
+            },
+            {
+                icon: "🚌", title: "30. Rosa Parks", src: "30_Rosa_Parks.mp3",
+                text: `Rosa Parks is known as the "Mother of the Civil Rights Movement." In 1955, in Alabama, she did something very brave. She refused to give up her bus seat to a white man, even though the law said she had to. Her arrest started a massive protest where Black people refused to use the buses for over a year. This protest was led by Martin Luther King Jr. and eventually forced the government to change the unfair laws. Rosa Parks showed the world that one person can start a big change just by saying "no" to injustice. She spent the rest of her life working for peace and equality for all people.`,
+                dictionary: {"brave":"cesur","refused":"reddetti","protest":"protesto","eventually":"sonunda","injustice":"adaletsizlik","equality":"eşitlik"}
+            },
+            {
+                icon: "🇨🇱", title: "31. Salvador Allende", src: "31_Salvador_Allende.mp3",
+                text: `Salvador Allende was a dedicated doctor and politician who became the first democratically elected socialist president of Chile in 1970. He believed deeply that his country's immense wealth, like its copper mines, should belong to the Chilean people and not to powerful foreign companies. During his presidency, he worked hard to improve the lives of the poor by raising wages, providing free milk to children, and giving land to struggling farmers. However, his radical changes angered wealthy elites and the United States government, who secretly worked to destroy Chile's economy. In September 1973, the military, led by General Augusto Pinochet, launched a violent coup against the government. As the military bombed the presidential palace, Allende refused to surrender or run away. He gave a famous final speech over the radio, telling his people to keep their hope alive for a better future. He died defending the palace, becoming an eternal martyr for democracy and social justice in Latin America.`,
+                dictionary: {"dedicated":"adanmış","democratically":"demokratik olarak","immense":"muazzam","wages":"maaşlar","struggling":"mücadele eden","radical":"radikal","elites":"seçkinler","violently":"şiddetle","eternal":"sonsuz","martyr":"şehit"}
+            },
+            {
+                icon: "🇲🇿", title: "32. Samora Machel", src: "32_Samora_Machel.mp3",
+                text: `Samora Machel was the leader who brought independence to Mozambique. He led a long and difficult war against the Portuguese army for many years. He was a charismatic military commander who believed in socialism and equality for everyone. When the war ended in 1975, he became the first President of the country. He worked to build new schools and hospitals for the poor and to unite different groups of people. He also helped other African countries fight for their freedom. He died in a mysterious plane crash in 1986. Many people believe his enemies caused the crash. He remains a beloved hero in Mozambique and throughout Southern Africa.`,
+                dictionary: {"charismatic":"karizmatik","commander":"komutan","socialism":"sosyalizm","equality":"eşitlik","mysterious":"gizemli","crash":"kaza","beloved":"sevilen"}
+            },
+            {
+                icon: "⚔️", title: "33. Simón Bolívar", src: "33_Simon_Bolivar.mp3",
+                text: `Simón Bolívar was a brilliant military commander and political leader who is famously known as "The Liberator." He was born into a wealthy family in Venezuela, but he spent his life fighting to free South America from the powerful Spanish Empire. He dreamed of a united, independent continent where people could rule themselves. Bolívar led rebel armies across massive mountains and deep jungles, fighting in incredibly difficult conditions. Through years of brilliant military campaigns, he successfully won independence for Venezuela, Colombia, Ecuador, Peru, and Bolivia—a country that was actually named in his honor. He served as the president of a large new nation called Gran Colombia, hoping to build a strong republic like the United States. However, political fighting and regional differences eventually caused his great nation to break apart. He died feeling disappointed, but today he is celebrated across the entire continent as the greatest hero of South American independence. Statues of him stand in almost every major city from Caracas to La Paz.`,
+                dictionary: {"liberator":"kurtarıcı","continent":"kıta","incredibly":"inanılmaz derecede","campaigns":"seferler/kampanyalar","successfully":"başarıyla","regional":"bölgesel","disappointed":"hayal kırıklığına uğramış","celebrated":"kutlanan"}
+            },
+            {
+                icon: "🪶", title: "34. Sitting Bull", src: "34_Sitting_Bull.mp3",
+                text: `Sitting Bull was a legendary chief and holy man of the Lakota Nation who fiercely defended his people's land and traditional way of life. During the 19th century, the United States government repeatedly broke its treaties and sent the army to push Native American tribes off their ancestral lands to search for gold. Sitting Bull refused to surrender or move his people to reservations. He was a brilliant spiritual and military leader who united several different tribes to fight back against the invading forces. His greatest moment came in 1876 at the famous Battle of the Little Bighorn, where his united warriors completely defeated General Custer and the US military. Even after this massive victory, the government hunted his people relentlessly, destroying their food supply. He eventually surrendered to save his people from starving, but he never stopped speaking out for their rights. He was tragically killed by police in 1890, but he remains an enduring symbol of Native American pride and resistance.`,
+                dictionary: {"legendary":"efsanevi","fiercely":"şiddetle","treaties":"antlaşmalar","ancestral":"atasal","reservations":"rezervasyonlar - yerli bölgesi","invading":"işgalci","relentlessly":"acımasızca","starving":"açlıktan ölmek","enduring":"kalıcı/dayanıklı"}
+            },
+            {
+                icon: "🌹", title: "35. Sophie Scholl", src: "35_Sophie_Scholl.mp3",
+                text: `Sophie Scholl was a remarkably brave young woman who fought a non-violent war against the cruel Nazi government in Germany. When Adolf Hitler came to power, many people were too afraid to speak out, but Sophie and her brother Hans believed they had to do something. They created a secret resistance group called the White Rose at their university in Munich. Together with a few friends, they secretly printed thousands of leaflets that told the truth about the terrible crimes committed by the Nazis. They risked their lives to mail these papers and leave them in public places, urging the German people to wake up and rebel against Hitler's dictatorship. In 1943, Sophie and her brother were caught dropping leaflets from a balcony at their school. They were interrogated by the secret police but refused to betray their friends. Sophie was executed by the government when she was only 21 years old. Today, she is honored worldwide as a brilliant symbol of moral courage and youthful resistance against pure evil.`,
+                dictionary: {"remarkably":"dikkat çekici bir şekilde","secretly":"gizlice","leaflets":"bildiriler","urging":"teşvik eden","dictatorship":"diktatörlük","interrogated":"sorgulandı","betray":"ihanet etmek","moral":"ahlaki","youthful":"genç"}
+            },
+            {
+                icon: "✊🏿", title: "36. Steve Biko", src: "36_Steve_Biko.mp3",
+                text: `Steve Biko was a brilliant young leader who fought against racism in South Africa. He started the "Black Consciousness" movement, which taught Black people to be proud of themselves and their history. He believed that the first step to freedom was for people to realize they were not inferior to anyone else. The government was very afraid of his ideas and banned him from speaking to the public. In 1977, he was arrested and beaten so badly by the police that he died. He was only 30 years old. His death made the whole world angry at the South African government. He is remembered for the famous phrase: "Black is beautiful."`,
+                dictionary: {"consciousness":"bilinç","inferior":"aşağı/daha düşük","banned":"yasakladı","beaten":"dövüldü","phrase":"ifade/söz"}
+            },
+            {
+                icon: "⭐", title: "37. Thomas Sankara", src: "37_Thomas_Sankara.mp3",
+                text: `Thomas Sankara was the President of Burkina Faso in the 1980s. He was a very different kind of leader because he lived a very simple life and refused to be rich while his people were poor. He changed the name of his country to Burkina Faso, which means "Land of Incorruptible People." He built many schools, planted millions of trees, and was a strong supporter of women's rights. He wanted his country to be independent and not rely on money from other nations. He was killed in a coup in 1987 by people who did not like his radical changes. He is often called the "African Che Guevara" and is a hero to many young Africans today.`,
+                dictionary: {"incorruptible":"yozlaştırılamaz","supporter":"destekçi","rely":"güvenmek/bel bağlamak","coup":"darbe","radical":"radikal"}
+            },
+            {
+                icon: "🎸", title: "38. Víctor Jara", src: "38_Victor_Jara.mp3",
+                text: `Víctor Jara was a brilliant teacher, theater director, and folk singer who became one of the most beloved cultural figures in Chile. He believed that art should be a voice for the voiceless. With his acoustic guitar, he sang beautiful, powerful songs about the struggles of poor farmers, workers, and everyday people. He strongly supported President Salvador Allende and the dream of a fairer, more equal society. When the violent military coup led by General Pinochet took over the country in 1973, the army immediately arrested Jara because they were terrified of his influence over the people. He was taken to a massive sports stadium that the military had turned into a prison. Even while he was being tortured, he bravely sang songs of resistance to give courage to the other prisoners. He was brutally murdered by the soldiers, but they could not silence his voice. Today, his music is sung by activists all over the world, and the stadium where he died is now named in his honor.`,
+                dictionary: {"beloved":"sevilen","voiceless":"sessiz/sesi olmayan","acoustic":"akustik","terrified":"dehşete düşmüş","influence":"etki","tortured":"işkence gördü","brutally":"vahşice","silence":"susturmak"}
+            },
+            {
+                icon: "🇵🇸", title: "39. Yasser Arafat", src: "39_Yasser_Arafat.mp3",
+                text: `Yasser Arafat was the most famous leader of the Palestinian people for many decades. He spent his whole life fighting for a country for his people. He was the founder of the Fatah movement and the leader of the PLO. He was a very complicated man who used both war and peace to achieve his goals. In 1993, he signed a peace agreement with Israel and won the Nobel Peace Prize. He became the first President of the Palestinian Authority. He was a symbol of his people’s struggle, always wearing his famous "kuffiyeh" scarf. Whether people agreed with him or not, everyone knew he was a man who never stopped fighting for Palestine until he died.`,
+                dictionary: {"complicated":"karmaşık","achieve":"başarmak/elde etmek","agreement":"anlaşma","struggle":"mücadele"}
+            }
+        ]
+    }
+};
+// --- END MASTER DATA OBJECT ---
+
+const trackContainer=document.getElementById('track-container');
+const audioPlayer=document.getElementById('audio-player');
+const playPauseBtn=document.getElementById('h-play-pause-btn');
+const mainPlayBtn=document.getElementById('h-main-play-btn');
+const nowPlayingTitle=document.getElementById('h-now-playing-title');
+const nowPlayingArtist=document.getElementById('h-now-playing-artist');
+const npArt=document.getElementById('np-art');
+const progressFill=document.getElementById('progress-fill');
+const progressBar=document.getElementById('progress-bar');
+const currentTimeEl=document.getElementById('current-time');
+const durationEl=document.getElementById('duration');
+const prevBtn=document.getElementById('prev-btn');
+const nextBtn=document.getElementById('next-btn');
+const transcriptToggleBtn=document.getElementById('h-transcript-toggle');
+const transcriptContainer=document.getElementById('h-transcript-container');
+const fullscreenBtn=document.getElementById('h-fullscreen-btn');
+const transcriptTitle=document.getElementById('h-transcript-title');
+const transcriptText=document.getElementById('h-transcript-text');
+
+// Dynamic UI Elements
+const uiHeader=document.getElementById('ui-header');
+const uiCover=document.getElementById('ui-cover');
+const uiTitle=document.getElementById('ui-title');
+const uiDesc=document.getElementById('ui-desc');
+
+let currentPlaylistId = "history_words";
+let currentTrackIndex = null;
+let isPlaying = false;
+let delayTimeout = null;
+
+function loadPlaylist(playlistId) {
+    if(!playlists[playlistId]) return;
+    
+    currentPlaylistId = playlistId;
+    const data = playlists[currentPlaylistId];
+    
+    // Update Header UI
+    uiTitle.textContent = data.title;
+    uiCover.textContent = data.cover;
+    uiDesc.textContent = data.description;
+    
+    // Update Theme Colors
+    uiHeader.style.background = `linear-gradient(transparent 0,rgba(0,0,0,.5) 100%), ${data.color}`;
+    document.documentElement.style.setProperty('--p-color', data.color);
+    
+    // Reset Player State
+    audioPlayer.pause();
+    audioPlayer.src = "";
+    isPlaying = false;
+    currentTrackIndex = null;
+    updatePlayButtons(false);
+    
+    // Reset Transcript View
+    transcriptTitle.textContent = "Select a lesson to read";
+    transcriptText.innerHTML = "Press play on any track to view the transcript here. Click highlighted words for translation.";
+    nowPlayingTitle.textContent = "";
+    nowPlayingArtist.textContent = "";
+    npArt.style.display = "none";
+    progressFill.style.width = "0%";
+    currentTimeEl.textContent = "0:00";
+    durationEl.textContent = "0:00";
+    
+    // Update Sidebar Navigation
+    document.querySelectorAll('.playlist-selector').forEach(el => el.classList.remove('active'));
+    document.getElementById(`nav-${playlistId}`).classList.add('active');
+
+    renderTracks();
+}
+
+function formatTranscriptWithDict(text,trackDictionary){
+    if(!trackDictionary)return text;
+    return text.replace(/(<[^>]*>)|(\b[a-zA-Z]+(?:['\-][a-zA-Z]+)*\b)/g, function(match, tag, word){
+        if(tag) return tag; 
+        let lowerMatch=word.toLowerCase();
+        if(trackDictionary[lowerMatch]){
+            return `<span class="dict-word" data-en="${word}" data-tr="${trackDictionary[lowerMatch]}">${word}</span>`;
+        }
+        return word;
+    });
+}
+
+function renderTracks(){
+    trackContainer.innerHTML='';
+    const activeTracks = playlists[currentPlaylistId].tracks;
+    
+    activeTracks.forEach((track,index)=>{
+        const div=document.createElement('div');
+        div.className='track-item';
+        if(index===currentTrackIndex && audioPlayer.src!=='') div.classList.add('playing');
+        
+        div.innerHTML=`<div class="track-number">${index+1}</div><div class="track-info"><div class="track-title">${track.icon || ''} ${track.title}</div><div class="track-artist">Listening Practice</div></div><div class="track-album">${playlists[currentPlaylistId].title}</div>`;
+        div.onclick=()=>playTrack(index);
+        trackContainer.appendChild(div);
+    });
+}
+
+function playTrack(index){
+    if(delayTimeout)clearTimeout(delayTimeout);
+    currentTrackIndex=index;
+    
+    const data = playlists[currentPlaylistId];
+    const track = data.tracks[index];
+    const displayIcon = track.icon ? track.icon + ' ' : '';
+    
+    nowPlayingTitle.textContent = displayIcon + track.title;
+    nowPlayingArtist.textContent = "Listening Practice";
+    
+    if(npArt) {
+        npArt.textContent = data.cover;
+        npArt.style.display="block";
+    }
+    
+    transcriptTitle.textContent = displayIcon + track.title;
+    transcriptText.innerHTML = formatTranscriptWithDict(track.text,track.dictionary);
+    
+    const fullSrc = data.baseUrl + track.src;
+    const targetSrc = encodeURI(fullSrc);
+    
+    if(!audioPlayer.src.includes(targetSrc)){audioPlayer.src=fullSrc;}
+    audioPlayer.play().catch(e=>console.log(e));
+    isPlaying=true;
+    updatePlayButtons(true);
+    renderTracks();
+}
+
+function togglePlayPause(){
+    if(!audioPlayer.src){
+        if(playlists[currentPlaylistId].tracks.length>0) playTrack(0);
+        return;
+    }
+    if(isPlaying){
+        audioPlayer.pause();
+        isPlaying=false;
+        updatePlayButtons(false);
+    }else{
+        audioPlayer.play();
+        isPlaying=true;
+        updatePlayButtons(true);
+    }
+}
+
+function updatePlayButtons(playing){
+    if(playing){
+        playPauseBtn.textContent='⏸';
+        playPauseBtn.classList.add('playing');
+        mainPlayBtn.textContent='⏸';
+        mainPlayBtn.style.paddingLeft='0';
+    }else{
+        playPauseBtn.textContent='▶';
+        playPauseBtn.classList.remove('playing');
+        mainPlayBtn.textContent='▶';
+        mainPlayBtn.style.paddingLeft='5px';
+    }
+}
+
+function playNext(){
+    const currentList = playlists[currentPlaylistId].tracks;
+    if(currentTrackIndex!==null && currentTrackIndex < currentList.length-1){
+        playTrack(currentTrackIndex+1);
+    }
+}
+
+function playPrev(){
+    if(currentTrackIndex!==null && currentTrackIndex>0){
+        playTrack(currentTrackIndex-1);
+    }
+    else if(audioPlayer.currentTime>3){
+        audioPlayer.currentTime=0;
+    }
+}
+
+document.querySelectorAll('.playlist-selector').forEach(link => {
+    link.addEventListener('click', (e) => {
+        const id = e.target.id.replace('nav-', '');
+        loadPlaylist(id);
+    });
+});
+
+playPauseBtn.addEventListener('click',togglePlayPause);
+mainPlayBtn.addEventListener('click',togglePlayPause);
+
+transcriptToggleBtn.addEventListener('click',()=>{
+    transcriptContainer.classList.toggle('show');
+    if(transcriptContainer.classList.contains('show')){
+        transcriptToggleBtn.textContent='📖 Hide Transcript';
+        fullscreenBtn.style.display='inline-block';
+    }else{
+        transcriptToggleBtn.textContent='📖 Show Transcript';
+        fullscreenBtn.style.display='none';
+        transcriptContainer.classList.remove('fullscreen');
+        fullscreenBtn.textContent='⛶ Full Screen';
+        document.body.style.overflow='';
+    }
+});
+
+fullscreenBtn.addEventListener('click',()=>{
+    transcriptContainer.classList.toggle('fullscreen');
+    if(transcriptContainer.classList.contains('fullscreen')){
+        fullscreenBtn.textContent='✖ Exit Full Screen';
+        document.body.style.overflow='hidden';
+    }else{
+        fullscreenBtn.textContent='⛶ Full Screen';
+        document.body.style.overflow='';
+    }
+});
+
+transcriptText.addEventListener('click',function(e){
+    const target=e.target.closest('.dict-word');
+    if(target){
+        if(target.classList.contains('active')){
+            target.classList.remove('active');
+            target.innerHTML=target.getAttribute('data-en');
+        }else{
+            target.classList.add('active');
+            const enWord=target.getAttribute('data-en');
+            const trWord=target.getAttribute('data-tr');
+            target.innerHTML=`<span class="neon-en">${enWord}</span> <span class="neon-tr">[${trWord}]</span>`;
+        }
+    }
+});
+
+nextBtn.addEventListener('click',()=>{if(delayTimeout)clearTimeout(delayTimeout);playNext();});
+prevBtn.addEventListener('click',()=>{if(delayTimeout)clearTimeout(delayTimeout);playPrev();});
+
+audioPlayer.addEventListener('ended',()=>{delayTimeout=setTimeout(()=>{playNext();},3000);});
+
+audioPlayer.addEventListener('timeupdate',()=>{
+    if(audioPlayer.duration){
+        const percent=(audioPlayer.currentTime/audioPlayer.duration)*100;
+        progressFill.style.width=`${percent}%`;
+        currentTimeEl.textContent=formatTime(audioPlayer.currentTime);
+    }
+});
+
+audioPlayer.addEventListener('loadedmetadata',()=>{durationEl.textContent=formatTime(audioPlayer.duration);});
+
+progressBar.addEventListener('click',(e)=>{
+    if(!audioPlayer.duration)return;
+    const rect=progressBar.getBoundingClientRect();
+    const pos=(e.clientX-rect.left)/rect.width;
+    audioPlayer.currentTime=pos*audioPlayer.duration;
+});
+
+function formatTime(seconds){
+    if(isNaN(seconds))return"0:00";
+    const mins=Math.floor(seconds/60);
+    const secs=Math.floor(seconds%60);
+    return`${mins}:${secs<10?'0':''}${secs}`;
+}
+
+document.addEventListener('keydown', (e) => {
+    if(e.code === 'Space' && e.target === document.body) {
+        e.preventDefault(); 
+        togglePlayPause();
+    }
+});
+
+// Init App
+loadPlaylist('history_words');
+</script>
+</body>
+</html>
